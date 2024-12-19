@@ -1,4 +1,4 @@
-# Git Branch Cleanup Tool Rules
+# Project Rules
 
 ## Project Structure
 
@@ -12,35 +12,42 @@
 - Create new branches for all features and fixes
 - Branch names should be descriptive of the change
 - Never work directly on main branch
+- Always review changes with `git diff` before committing
 
 ## Dependencies
 
-- Use uv/uvx for Python package management
-- Required packages:
+- Use uv/uvx for all Python package management:
+  - Installing dependencies
+  - Building packages
+  - Publishing packages
+  - Managing virtual environments
+- Required packages defined in pyproject.toml:
   - typer: For CLI interface
   - rich: For terminal output formatting
   - pydantic: For config file validation
-  - pytest: For testing
 
 ## Code Style
 
-- Use Python type hints everywhere
-- Follow PEP 8 style guide
+- Use Python type hints everywhere (Python 3.12+)
+- Follow PEP 8 style guide with 88 character line length
+- Use double quotes for strings
 - Use docstrings for all public functions
 - Keep functions focused and small
 - Use rich for colored output
-- Use Ruff for Python linting and auto-fixing:
+- Use Ruff for Python linting and formatting:
   - Enable auto-fix for all fixable rules
-  - Run Ruff before commits
-  - Configure in pyproject.toml
+  - Run Ruff before commits via pre-commit
+  - Configured rules: E, W, F, I, B, C, UP, RUF, PL, N, D, COM
 
 ## Testing
 
 - Write pytest tests for all functionality
-- Mock git commands in tests
+- Use pytest-mock for mocking git commands
 - Test all CLI options and flags
 - Test config file handling
 - Test error cases
+- Maintain test coverage reporting with pytest-cov
+- Configure coverage exclusions in pyproject.toml
 
 ## Git Branch Cleanup Features
 
@@ -55,53 +62,50 @@
 ## Error Handling
 
 - Graceful handling of git command failures
-- Clear error messages for users
-- Validate config file format
+- Clear error messages with rich formatting
+- Validate config file format with pydantic
 - Check if in git repository
 - Handle permission issues
+- Fallback to defaults on config errors
 
 ## User Experience
 
-- Clear, colored output
-- Progress indicators for long operations
+- Clear, colored output with rich
+- Progress indicators for operations
 - Confirmation prompts in interactive mode
 - Helpful error messages
 - Support --help with good documentation
+- Dry run mode for safety
 
 ## Configuration
 
-- Config file in JSON format
+- Config file in JSON format (.git-cleanuprc)
 - Support for:
-  - Protected branches list
+  - Protected branches list (defaults to ["main"])
   - Default dry run setting
   - Interactive mode preference
   - Skip gc option
-  - Reflog expiry setting
 
 ## Security
 
 - No shell injection vulnerabilities
-- Safe handling of file paths
+- Safe handling of file paths with pathlib
 - Careful git command execution
 - Protected branches safety
+- UTF-8 encoding for all file operations
 
 ## Performance
 
 - Efficient git command execution
 - Minimize unnecessary operations
 - Smart branch filtering
+- Optional gc optimization
 
-## Documentation and Linting
+## Development Tools
 
-- Use markdownlint for consistent markdown formatting
-- Required markdown rules:
-  - No trailing spaces
-  - Consistent header hierarchy
-  - No multiple top-level headers
-  - No empty links
-  - Proper list indentation
-  - No bare URLs
-  - Line length limits
-- Auto-fix markdown issues where possible
-- Run markdown linting in CI/CD
-- Include markdownlint configuration file
+- Use pre-commit hooks for:
+  - Ruff linting and formatting
+  - Type checking with mypy
+  - Other code quality checks
+- Configure all tools in pyproject.toml
+- Run tools before commits
