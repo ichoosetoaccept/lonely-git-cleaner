@@ -1,6 +1,7 @@
 # lonely-git-cleaner 🧹
 
-A comprehensive Git repository cleanup tool that safely removes stale branches and optimizes repository performance.
+A comprehensive Git repository cleanup tool that safely removes stale branches and optimizes repository
+performance.
 
 Why lonely? Because it has zero external dependencies and uses pure git commands for everything.
 
@@ -16,11 +17,13 @@ Why lonely? Because it has zero external dependencies and uses pure git commands
 ## Installation
 
 ### Using npm (Recommended)
+
 ```bash
 npm install -g lonely-git-cleaner
 ```
 
 ### Manual Installation
+
 ```bash
 # Clone the repository
 git clone https://github.com/yourusername/lonely-git-cleaner.git
@@ -68,7 +71,8 @@ git-cleanup --protect "main,develop,staging"
 
 ## Recovery
 
-If you accidentally delete a branch, you can recover it within Git's reflog expiry period (default: 90 days):
+If you accidentally delete a branch, you can recover it within Git's reflog expiry period
+(default: 90 days):
 
 ```bash
 # See the reflog entries

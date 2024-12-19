@@ -70,3 +70,17 @@
 - Efficient git command execution
 - Minimize unnecessary operations
 - Smart branch filtering
+
+## Documentation and Linting
+- Use markdownlint for consistent markdown formatting
+- Required markdown rules:
+  - No trailing spaces
+  - Consistent header hierarchy
+  - No multiple top-level headers
+  - No empty links
+  - Proper list indentation
+  - No bare URLs
+  - Line length limits
+- Auto-fix markdown issues where possible
+- Run markdown linting in CI/CD
+- Include markdownlint configuration file
