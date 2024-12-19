@@ -4,7 +4,7 @@ A comprehensive Git repository cleanup tool that safely removes stale branches a
 
 ## Features
 
-- 🧼 Removes merged branches
+- 🧼 Safely Removes merged branches
 - 🔍 Detects and removes branches with gone remotes
 - 🗑️ Performs garbage collection and pruning
 - 🛡️ Protects main/master branches
@@ -30,7 +30,7 @@ chmod +x ./lonely-git-cleaner/bin/git-cleanup
 ln -s "$(pwd)/lonely-git-cleaner/bin/git-cleanup" /usr/local/bin/
 ```
 
-## Usage
+## Usage (when in a git repository)
 
 ```bash
 # Basic cleanup
