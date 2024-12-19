@@ -1,4 +1,4 @@
-# lonely-git-cleaner 🧹
+# git-cleanup 🧹
 
 A comprehensive Git repository cleanup tool that safely removes stale branches and optimizes repository
 performance.
@@ -17,15 +17,15 @@ performance.
 ### Using uv (Recommended)
 
 ```bash
-uv pip install git+https://github.com/yourusername/lonely-git-cleaner.git
+uv pip install git+https://github.com/yourusername/git-cleanup.git
 ```
 
 ### Development Installation
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/lonely-git-cleaner.git
-cd lonely-git-cleaner
+git clone https://github.com/yourusername/git-cleanup.git
+cd git-cleanup
 
 # Install in development mode with dev dependencies
 uv pip install -e ".[dev]"
