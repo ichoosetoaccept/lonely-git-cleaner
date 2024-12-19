@@ -4,7 +4,6 @@ import subprocess
 from unittest.mock import patch
 
 import pytest
-
 from git_cleanup import git
 
 
@@ -31,7 +30,9 @@ def test_run_git_command(mock_run):
 def test_run_git_command_error(mock_run):
     """Test handling git command errors."""
     mock_run.side_effect = subprocess.CalledProcessError(
-        1, "git status", stderr="fatal: not a git repository",
+        1,
+        "git status",
+        stderr="fatal: not a git repository",
     )
 
     with pytest.raises(
@@ -44,7 +45,9 @@ def test_run_git_command_error(mock_run):
 def test_run_git_command_silent_error(mock_run):
     """Test silent error handling."""
     mock_run.side_effect = subprocess.CalledProcessError(
-        1, "git status", stderr="fatal: not a git repository",
+        1,
+        "git status",
+        stderr="fatal: not a git repository",
     )
 
     stdout, stderr = git.run_git_command(["status"], silent=True)
@@ -69,7 +72,9 @@ def test_is_not_git_repo(mock_run):
     """Test non-git repository detection."""
     cmd = ["git", "rev-parse", "--is-inside-work-tree"]
     mock_run.side_effect = subprocess.CalledProcessError(
-        128, cmd, stderr="fatal: not a git repository",
+        128,
+        cmd,
+        stderr="fatal: not a git repository",
     )
     assert not git.is_git_repo()
 
@@ -90,7 +95,7 @@ def test_get_merged_branches(mock_run):
     mock_run.return_value.stdout = """
   feature/456
   hotfix/789
-* master
+* main
 """
     branches = git.get_merged_branches()
     assert set(branches) == {"feature/456", "hotfix/789"}
@@ -158,7 +163,7 @@ def test_fetch_and_prune(mock_run):
 def test_filter_protected_branches():
     """Test filtering protected branches."""
     branches = ["main", "develop", "feature/123"]
-    protected = ["main", "master"]
+    protected = ["main"]
 
     filtered = git.filter_protected_branches(branches, protected)
     assert filtered == ["develop", "feature/123"]

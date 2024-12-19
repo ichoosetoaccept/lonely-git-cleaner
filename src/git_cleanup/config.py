@@ -10,7 +10,7 @@ class Config(BaseModel):
     """Configuration model for git-cleanup."""
 
     protected_branches: list[str] = Field(
-        default=["main", "master"],
+        default=["main"],
         description="Branches that should never be deleted",
     )
     dry_run_by_default: bool = Field(

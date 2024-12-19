@@ -11,7 +11,7 @@
 
 - Create new branches for all features and fixes
 - Branch names should be descriptive of the change
-- Never work directly on main/master branch
+- Never work directly on main branch
 
 ## Dependencies
 

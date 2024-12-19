@@ -4,9 +4,8 @@ from unittest.mock import patch
 
 import pytest
 from click.exceptions import Exit
-from typer.testing import CliRunner
-
 from git_cleanup import cli, config, git
+from typer.testing import CliRunner
 
 runner = CliRunner()
 

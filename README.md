@@ -8,7 +8,7 @@ performance.
 - 🧼 Safely Removes merged branches
 - 🔍 Detects and removes branches with gone remotes
 - 🗑️ Performs garbage collection and pruning
-- 🛡️ Protects main/master branches
+- 🛡️ Protects main branch
 - ⚡ Optimizes repository performance
 - 🔄 Automatic remote pruning
 
@@ -46,7 +46,7 @@ git-cleanup --interactive
 # Skip garbage collection
 git-cleanup --no-gc
 
-# Specify protected branches (default: main,master)
+# Specify protected branches (default: main)
 git-cleanup --protect "main,develop,staging"
 ```
 
@@ -59,7 +59,7 @@ git-cleanup --protect "main,develop,staging"
 
 ## Safety Features
 
-- Never deletes protected branches (main/master by default)
+- Never deletes protected branches (main by default)
 - Only deletes branches that are fully merged or have gone remotes
 - Provides dry-run mode to preview changes
 - Interactive mode for controlled cleanup
@@ -84,7 +84,7 @@ You can configure default behavior by creating a `.git-cleanuprc` file in your h
 
 ```json
 {
-  "protectedBranches": ["main", "master", "develop"],
+  "protectedBranches": ["main", "develop"],
   "dryRunByDefault": false,
   "interactive": false,
   "skipGc": false,

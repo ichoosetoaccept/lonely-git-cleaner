@@ -10,7 +10,7 @@ from git_cleanup import config
 def test_config_defaults():
     """Test default configuration values."""
     cfg = config.Config()
-    assert cfg.protected_branches == ["main", "master"]
+    assert cfg.protected_branches == ["main"]
     assert not cfg.dry_run_by_default
     assert not cfg.interactive
     assert not cfg.skip_gc
@@ -32,7 +32,7 @@ def test_load_config_no_file():
         cfg = config.load_config()
         assert isinstance(cfg, config.Config)
         # Should return defaults
-        assert cfg.protected_branches == ["main", "master"]
+        assert cfg.protected_branches == ["main"]
 
 
 def test_load_config_with_file():
@@ -66,7 +66,7 @@ def test_load_config_invalid_json():
         with patch("builtins.open", mock_file):
             cfg = config.load_config()
             # Should return defaults on error
-            assert cfg.protected_branches == ["main", "master"]
+            assert cfg.protected_branches == ["main"]
 
 
 def test_save_config():
@@ -79,7 +79,7 @@ def test_save_config():
 
         # Get all write calls
         write_calls = mock_file().write.call_args_list
-        written_content = ''.join(call.args[0] for call in write_calls)
+        written_content = "".join(call.args[0] for call in write_calls)
 
         # Parse and verify the written JSON
         saved_config = json.loads(written_content)

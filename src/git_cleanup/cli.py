@@ -128,6 +128,8 @@ no_gc_option = typer.Option(
     "--no-gc",
     help="Skip garbage collection",
 )
+
+
 def parse_protect_option(value: str) -> list[str]:
     """Parse comma-separated protect option into list of branch names."""
     if not value:
