@@ -1,0 +1,49 @@
+[project]
+name = "git-cleanup"
+version = "1.0.0"
+description = "A CLI tool to clean up git branches"
+authors = [{ name = "Ismar" }]
+dependencies = [
+    "typer>=0.9.0",
+    "rich>=13.7.0",
+    "pydantic>=2.5.2"
+]
+requires-python = ">=3.12"
+
+[project.scripts]
+git-cleanup = "git_cleanup.cli:app"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+addopts = "-v --cov=git_cleanup"
+
+[tool.coverage.run]
+source = ["git_cleanup"]
+branch = true
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "if __name__ == .__main__.:",
+    "raise NotImplementedError",
+    "if TYPE_CHECKING:",
+]
+
+[tool.ruff]
+line-length = 88
+target-version = "py312"
+
+[tool.ruff.lint]
+select = [
+    "E",  # pycodestyle errors
+    "W",  # pycodestyle warnings
+    "F",  # pyflakes
+    "I",  # isort
+    "B",  # flake8-bugbear
+]
