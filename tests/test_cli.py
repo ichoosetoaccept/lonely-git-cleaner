@@ -122,17 +122,31 @@ def test_main_no_gc(mock_config):
     patch.stopall()
 
 
+def test_parse_protect_option():
+    """Test parsing of protect option."""
+    assert cli.parse_protect_option("") == []
+    assert cli.parse_protect_option("main") == ["main"]
+    assert cli.parse_protect_option("main,develop") == ["main", "develop"]
+    assert cli.parse_protect_option(" main , develop ") == ["main", "develop"]
+
+
 def test_main_protect_branches(mock_config):
     """Test protecting additional branches."""
     with patch.multiple(
         "git_cleanup.git",
         is_git_repo=lambda: True,
-        get_gone_branches=lambda: ["develop", "feature/123"],
+        get_gone_branches=lambda: ["develop", "feature/123", "staging"],
         get_merged_branches=lambda: [],
         filter_protected_branches=git.filter_protected_branches,
         delete_branch=lambda *args, **kwargs: None,
     ):
+        # Test single branch protection
         result = runner.invoke(cli.app, ["--protect", "develop"])
+        assert result.exit_code == 0
+        assert "Found 2 branches with gone remotes" in result.stdout
+
+        # Test comma-separated branch protection
+        result = runner.invoke(cli.app, ["--protect", "develop,staging"])
         assert result.exit_code == 0
         assert "Found 1 branches with gone remotes" in result.stdout
 

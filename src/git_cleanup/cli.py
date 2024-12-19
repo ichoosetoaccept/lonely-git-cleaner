@@ -128,11 +128,19 @@ no_gc_option = typer.Option(
     "--no-gc",
     help="Skip garbage collection",
 )
+def parse_protect_option(value: str) -> list[str]:
+    """Parse comma-separated protect option into list of branch names."""
+    if not value:
+        return []
+    return [branch.strip() for branch in value.split(",")]
+
+
 protect_option = typer.Option(
-    [],
+    "",
     "--protect",
     "-p",
     help="Additional protected branches (comma-separated)",
+    callback=parse_protect_option,
 )
 
 
@@ -141,7 +149,7 @@ def main(
     dry_run: bool = dry_run_option,
     interactive: bool = interactive_option,
     no_gc: bool = no_gc_option,
-    protect: list[str] = protect_option,
+    protect: str = protect_option,
 ) -> None:
     """Clean up git branches that are gone or merged."""
     # Validate git repository
