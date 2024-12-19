@@ -1,17 +1,20 @@
 # Git Branch Cleanup Tool Rules
 
 ## Project Structure
+
 - Use src/git_cleanup/ for main package code
 - Keep tests/ directory for pytest files
 - Use pyproject.toml for project metadata and dependencies
 - Config file should be in user's home directory as .git-cleanuprc
 
 ## Git Branching
+
 - Create new branches for all features and fixes
 - Branch names should be descriptive of the change
 - Never work directly on main/master branch
 
 ## Dependencies
+
 - Use uv/uvx for Python package management
 - Required packages:
   - typer: For CLI interface
@@ -20,6 +23,7 @@
   - pytest: For testing
 
 ## Code Style
+
 - Use Python type hints everywhere
 - Follow PEP 8 style guide
 - Use docstrings for all public functions
@@ -31,6 +35,7 @@
   - Configure in pyproject.toml
 
 ## Testing
+
 - Write pytest tests for all functionality
 - Mock git commands in tests
 - Test all CLI options and flags
@@ -38,6 +43,7 @@
 - Test error cases
 
 ## Git Branch Cleanup Features
+
 - Detect and clean gone remote branches
 - Handle merged branches
 - Support protected branches list
@@ -47,6 +53,7 @@
 - Config file for user preferences
 
 ## Error Handling
+
 - Graceful handling of git command failures
 - Clear error messages for users
 - Validate config file format
@@ -54,6 +61,7 @@
 - Handle permission issues
 
 ## User Experience
+
 - Clear, colored output
 - Progress indicators for long operations
 - Confirmation prompts in interactive mode
@@ -61,6 +69,7 @@
 - Support --help with good documentation
 
 ## Configuration
+
 - Config file in JSON format
 - Support for:
   - Protected branches list
@@ -70,17 +79,20 @@
   - Reflog expiry setting
 
 ## Security
+
 - No shell injection vulnerabilities
 - Safe handling of file paths
 - Careful git command execution
 - Protected branches safety
 
 ## Performance
+
 - Efficient git command execution
 - Minimize unnecessary operations
 - Smart branch filtering
 
 ## Documentation and Linting
+
 - Use markdownlint for consistent markdown formatting
 - Required markdown rules:
   - No trailing spaces
