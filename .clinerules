@@ -48,6 +48,15 @@
 - Test error cases
 - Maintain test coverage reporting with pytest-cov
 - Configure coverage exclusions in pyproject.toml
+- Test progress bars and callbacks:
+  - Mock progress callbacks in fixtures
+  - Verify callback messages and formatting
+  - Test progress bar integration with rich
+- Virtual Environment Setup:
+  - Always use uv venv for creating virtual environments
+  - Create .venv in project root: `uv venv .venv`
+  - Activate environment: `source .venv/bin/activate`
+  - Install in dev mode: `uv pip install -e ".[dev]"`
 
 ## Git Branch Cleanup Features
 

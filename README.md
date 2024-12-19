@@ -14,22 +14,47 @@ performance.
 
 ## Installation
 
-### Using uv (Recommended)
+### Global Installation (Recommended for Users)
+
+This installs the tool globally on your system, making it available in any terminal session:
 
 ```bash
 uv pip install git+https://github.com/yourusername/git-cleanup.git
 ```
 
+After installation:
+- The `git-cleanup` command will be available globally
+- No need to activate any virtual environment
+- Works in any terminal session or directory
+- Persists after terminal restarts
+
 ### Development Installation
+
+This sets up a development environment for contributing to the project:
 
 ```bash
 # Clone the repository
 git clone https://github.com/yourusername/git-cleanup.git
 cd git-cleanup
 
+# Create and activate virtual environment
+uv venv .venv
+source .venv/bin/activate
+
 # Install in development mode with dev dependencies
 uv pip install -e ".[dev]"
 ```
+
+Important notes about development installation:
+- The virtual environment must be activated to run tests and development tools
+- You'll need to reactivate the virtual environment in new terminal sessions
+- The tool is only available while the virtual environment is active
+- To make development changes available globally, use the global installation method above
+
+If you see "command not found" errors:
+1. Check if you're in the right directory
+2. Make sure the virtual environment is activated
+3. Try reactivating: `source .venv/bin/activate`
 
 ## Usage (when in a git repository)
 
@@ -102,8 +127,11 @@ You can configure default behavior by creating a `.git-cleanuprc` file in your h
 ### Running Tests
 
 ```bash
+# Ensure virtual environment is activated
+source .venv/bin/activate
+
 # Run tests with coverage
-pytest
+pytest  # Coverage config is in pyproject.toml
 
 # Run linting
 ruff check .
@@ -111,6 +139,12 @@ ruff check .
 # Run formatting
 ruff format .
 ```
+
+Test coverage includes:
+- CLI functionality and options
+- Git operations and error handling
+- Progress bars and visual feedback
+- Configuration management
 
 ## Contributing
 
