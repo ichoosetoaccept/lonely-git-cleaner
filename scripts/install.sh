@@ -1,7 +1,14 @@
 #!/bin/bash
 
+set -e
+
 # Make the main script executable
-chmod +x "$(dirname "$0")/../bin/git-cleanup"
+SCRIPT_DIR="$(dirname "$0")"
+BIN_PATH="$SCRIPT_DIR/../bin/git-cleanup"
+
+chmod +x "$BIN_PATH" 2>/dev/null || {
+    echo "Error: chmod failed" >&2
+}
 
 # Check if we're running in a global npm install
 if [[ "$npm_config_global" == "true" ]]; then
@@ -14,11 +21,15 @@ if [[ "$npm_config_global" == "true" ]]; then
     else
         # Linux and others
         INSTALL_PATH="$HOME/.local/bin/git-cleanup"
-        mkdir -p "$(dirname "$INSTALL_PATH")"
+        mkdir -p "$(dirname "$INSTALL_PATH")" 2>/dev/null || {
+            echo "Error: mkdir failed" >&2
+        }
     fi
     
     # Create the symlink, overwriting if it exists
-    ln -sf "$(dirname "$0")/../bin/git-cleanup" "$INSTALL_PATH"
+    ln -sf "$BIN_PATH" "$INSTALL_PATH" 2>/dev/null || {
+        echo "Error: ln failed" >&2
+    }
     
     echo "Installation complete! You can now use 'git cleanup' anywhere."
 else
@@ -30,7 +41,8 @@ fi
 CONFIG_FILE="$HOME/.git-cleanuprc"
 if [[ ! -f "$CONFIG_FILE" ]]; then
     echo "Creating default configuration file at $CONFIG_FILE"
-    cat > "$CONFIG_FILE" << EOL
+    {
+        cat > "$CONFIG_FILE" << 'EOL' || echo "Error: write failed" >&2
 {
   "protectedBranches": ["main", "master"],
   "dryRunByDefault": false,
@@ -39,6 +51,7 @@ if [[ ! -f "$CONFIG_FILE" ]]; then
   "reflogExpiry": "90.days"
 }
 EOL
+    }
 fi
 
 exit 0

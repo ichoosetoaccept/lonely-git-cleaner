@@ -80,7 +80,7 @@ async function confirmDeletion(branch) {
 async function cleanGoneBranches() {
   console.log(chalk.blue('\n🔍 Checking for branches with gone remotes...'));
   
-  const output = execCommand('git branch -vv', { silent: true });
+  const output = execCommand('git branch -vv', { silent: true }) || '';
   const goneBranches = output
     .split('\n')
     .filter(line => line.includes(': gone]'))
@@ -107,7 +107,7 @@ async function cleanGoneBranches() {
 async function cleanMergedBranches() {
   console.log(chalk.blue('\n🧹 Checking for merged branches...'));
   
-  const output = execCommand('git branch --merged', { silent: true });
+  const output = execCommand('git branch --merged', { silent: true }) || '';
   const mergedBranches = output
     .split('\n')
     .map(b => b.trim())
@@ -176,7 +176,12 @@ async function main() {
   console.log(chalk.green('\n✨ Cleanup complete!'));
 }
 
-main().catch(error => {
-  console.error(chalk.red('Error:'), error);
-  process.exit(1);
-});
+// Only run if not being required (for tests)
+if (require.main === module) {
+  main().catch(error => {
+    console.error(chalk.red('Error:'), error);
+    process.exit(1);
+  });
+}
+
+module.exports = { main };
