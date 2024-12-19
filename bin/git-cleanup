@@ -1,0 +1,182 @@
+#!/usr/bin/env node
+
+const { program } = require('commander');
+const chalk = require('chalk');
+const inquirer = require('inquirer');
+const { execSync } = require('child_process');
+const fs = require('fs');
+const path = require('path');
+const os = require('os');
+
+// Default configuration
+const defaultConfig = {
+  protectedBranches: ['main', 'master'],
+  dryRunByDefault: false,
+  interactive: false,
+  skipGc: false,
+  reflogExpiry: '90.days'
+};
+
+// Load user configuration
+function loadConfig() {
+  const configPath = path.join(os.homedir(), '.git-cleanuprc');
+  try {
+    if (fs.existsSync(configPath)) {
+      const userConfig = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+      return { ...defaultConfig, ...userConfig };
+    }
+  } catch (error) {
+    console.warn(chalk.yellow('Warning: Error loading config file, using defaults'));
+  }
+  return defaultConfig;
+}
+
+const config = loadConfig();
+
+// CLI configuration
+program
+  .version('1.0.0')
+  .option('-d, --dry-run', 'Show what would be deleted without actually deleting', config.dryRunByDefault)
+  .option('-i, --interactive', 'Ask before each deletion', config.interactive)
+  .option('--no-gc', 'Skip garbage collection', !config.skipGc)
+  .option('-p, --protect <branches>', 'Comma-separated list of protected branches', config.protectedBranches.join(','))
+  .parse(process.argv);
+
+const options = program.opts();
+
+// Utility functions
+function execCommand(command, { silent = false } = {}) {
+  try {
+    return execSync(command, { encoding: 'utf8', stdio: silent ? 'pipe' : 'inherit' });
+  } catch (error) {
+    if (silent) return '';
+    throw error;
+  }
+}
+
+function isGitRepo() {
+  try {
+    execCommand('git rev-parse --is-inside-work-tree', { silent: true });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function confirmDeletion(branch) {
+  if (!options.interactive) return true;
+  
+  const { confirm } = await inquirer.prompt([{
+    type: 'confirm',
+    name: 'confirm',
+    message: `Delete branch ${branch}?`,
+    default: false
+  }]);
+  
+  return confirm;
+}
+
+// Main cleanup functions
+async function cleanGoneBranches() {
+  console.log(chalk.blue('\n🔍 Checking for branches with gone remotes...'));
+  
+  const output = execCommand('git branch -vv', { silent: true });
+  const goneBranches = output
+    .split('\n')
+    .filter(line => line.includes(': gone]'))
+    .map(line => line.split(' ')[0].trim())
+    .filter(branch => !options.protect.split(',').includes(branch));
+
+  if (goneBranches.length === 0) {
+    console.log(chalk.green('No branches with gone remotes found.'));
+    return;
+  }
+
+  console.log(chalk.yellow(`Found ${goneBranches.length} branches with gone remotes:`));
+  for (const branch of goneBranches) {
+    console.log(chalk.yellow(`  ${branch}`));
+    
+    if (options.dryRun) continue;
+    if (!await confirmDeletion(branch)) continue;
+    
+    execCommand(`git branch -D ${branch}`);
+    console.log(chalk.green(`Deleted branch ${branch}`));
+  }
+}
+
+async function cleanMergedBranches() {
+  console.log(chalk.blue('\n🧹 Checking for merged branches...'));
+  
+  const output = execCommand('git branch --merged', { silent: true });
+  const mergedBranches = output
+    .split('\n')
+    .map(b => b.trim())
+    .filter(b => b && !b.startsWith('*'))
+    .filter(branch => !options.protect.split(',').includes(branch));
+
+  if (mergedBranches.length === 0) {
+    console.log(chalk.green('No merged branches found.'));
+    return;
+  }
+
+  console.log(chalk.yellow(`Found ${mergedBranches.length} merged branches:`));
+  for (const branch of mergedBranches) {
+    console.log(chalk.yellow(`  ${branch}`));
+    
+    if (options.dryRun) continue;
+    if (!await confirmDeletion(branch)) continue;
+    
+    execCommand(`git branch -d ${branch}`);
+    console.log(chalk.green(`Deleted branch ${branch}`));
+  }
+}
+
+async function optimizeRepo() {
+  if (!options.gc) return;
+  
+  console.log(chalk.blue('\n⚡ Optimizing repository...'));
+  
+  if (options.dryRun) {
+    console.log(chalk.yellow('Would run: git gc && git prune'));
+    return;
+  }
+
+  try {
+    execCommand('rm -f .git/gc.log');
+    execCommand('git prune');
+    execCommand('git gc');
+    console.log(chalk.green('Repository optimized successfully.'));
+  } catch (error) {
+    console.error(chalk.red('Error optimizing repository:'), error.message);
+  }
+}
+
+// Main execution
+async function main() {
+  if (!isGitRepo()) {
+    console.error(chalk.red('Error: Not a git repository'));
+    process.exit(1);
+  }
+
+  console.log(chalk.blue('🧹 Starting git cleanup...'));
+  if (options.dryRun) {
+    console.log(chalk.yellow('DRY RUN: No changes will be made'));
+  }
+
+  // Update repository state
+  console.log(chalk.blue('\n🔄 Fetching and pruning remotes...'));
+  if (!options.dryRun) {
+    execCommand('git fetch -p');
+  }
+
+  await cleanGoneBranches();
+  await cleanMergedBranches();
+  await optimizeRepo();
+
+  console.log(chalk.green('\n✨ Cleanup complete!'));
+}
+
+main().catch(error => {
+  console.error(chalk.red('Error:'), error);
+  process.exit(1);
+});
