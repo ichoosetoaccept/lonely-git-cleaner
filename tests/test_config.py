@@ -4,8 +4,6 @@ import json
 from pathlib import Path
 from unittest.mock import mock_open, patch
 
-import pytest
-
 from git_cleanup import config
 
 
@@ -44,15 +42,15 @@ def test_load_config_with_file():
         "dry_run_by_default": True,
         "interactive": True,
         "skip_gc": True,
-        "reflog_expiry": "30.days"
+        "reflog_expiry": "30.days",
     }
-    
+
     mock_file = mock_open(read_data=json.dumps(test_config))
     with patch("pathlib.Path.exists") as mock_exists:
         mock_exists.return_value = True
         with patch("builtins.open", mock_file):
             cfg = config.load_config()
-            
+
             assert cfg.protected_branches == ["develop"]
             assert cfg.dry_run_by_default
             assert cfg.interactive
@@ -75,14 +73,14 @@ def test_save_config():
     """Test saving configuration to file."""
     cfg = config.Config(protected_branches=["develop"])
     mock_file = mock_open()
-    
+
     with patch("builtins.open", mock_file):
         config.save_config(cfg)
-        
+
         # Get all write calls
         write_calls = mock_file().write.call_args_list
         written_content = ''.join(call.args[0] for call in write_calls)
-        
+
         # Parse and verify the written JSON
         saved_config = json.loads(written_content)
         assert saved_config["protected_branches"] == ["develop"]
@@ -97,7 +95,7 @@ def test_save_config_error():
     cfg = config.Config()
     mock_file = mock_open()
     mock_file.side_effect = OSError("Permission denied")
-    
+
     with patch("builtins.open", mock_file):
         # Should not raise exception
         config.save_config(cfg)

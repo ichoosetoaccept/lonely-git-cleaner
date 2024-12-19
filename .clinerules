@@ -6,6 +6,11 @@
 - Use pyproject.toml for project metadata and dependencies
 - Config file should be in user's home directory as .git-cleanuprc
 
+## Git Branching
+- Create new branches for all features and fixes
+- Branch names should be descriptive of the change
+- Never work directly on main/master branch
+
 ## Dependencies
 - Use uv/uvx for Python package management
 - Required packages:
@@ -20,6 +25,10 @@
 - Use docstrings for all public functions
 - Keep functions focused and small
 - Use rich for colored output
+- Use Ruff for Python linting and auto-fixing:
+  - Enable auto-fix for all fixable rules
+  - Run Ruff before commits
+  - Configure in pyproject.toml
 
 ## Testing
 - Write pytest tests for all functionality
