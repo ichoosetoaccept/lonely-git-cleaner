@@ -1,7 +1,6 @@
 """Tests for git module."""
 
 import subprocess
-from pathlib import Path
 from unittest.mock import patch
 
 import pytest
@@ -25,26 +24,29 @@ def test_run_git_command(mock_run):
         ["git", "status"],
         capture_output=True,
         text=True,
-        check=True
+        check=True,
     )
 
 
 def test_run_git_command_error(mock_run):
     """Test handling git command errors."""
     mock_run.side_effect = subprocess.CalledProcessError(
-        1, "git status", stderr="fatal: not a git repository"
+        1, "git status", stderr="fatal: not a git repository",
     )
-    
-    with pytest.raises(git.GitError, match="Git command failed: fatal: not a git repository"):
+
+    with pytest.raises(
+        git.GitError,
+        match="Git command failed: fatal: not a git repository",
+    ):
         git.run_git_command(["status"])
 
 
 def test_run_git_command_silent_error(mock_run):
     """Test silent error handling."""
     mock_run.side_effect = subprocess.CalledProcessError(
-        1, "git status", stderr="fatal: not a git repository"
+        1, "git status", stderr="fatal: not a git repository",
     )
-    
+
     stdout, stderr = git.run_git_command(["status"], silent=True)
     assert stdout == ""
     assert stderr == "fatal: not a git repository"
@@ -59,7 +61,7 @@ def test_is_git_repo(mock_run):
         ["git", "rev-parse", "--is-inside-work-tree"],
         capture_output=True,
         text=True,
-        check=False
+        check=False,
     )
 
 
@@ -67,7 +69,7 @@ def test_is_not_git_repo(mock_run):
     """Test non-git repository detection."""
     cmd = ["git", "rev-parse", "--is-inside-work-tree"]
     mock_run.side_effect = subprocess.CalledProcessError(
-        128, cmd, stderr="fatal: not a git repository"
+        128, cmd, stderr="fatal: not a git repository",
     )
     assert not git.is_git_repo()
 
@@ -101,7 +103,7 @@ def test_delete_branch(mock_run):
         ["git", "branch", "-d", "feature/123"],
         capture_output=True,
         text=True,
-        check=True
+        check=True,
     )
 
 
@@ -112,7 +114,7 @@ def test_delete_branch_force(mock_run):
         ["git", "branch", "-D", "feature/123"],
         capture_output=True,
         text=True,
-        check=True
+        check=True,
     )
 
 
@@ -120,23 +122,25 @@ def test_optimize_repo(mock_run):
     """Test repository optimization."""
     with patch("pathlib.Path.unlink") as mock_unlink:
         git.optimize_repo()
-        
+
         # Should try to remove gc.log
         mock_unlink.assert_called_once()
-        
+
+        # Define expected number of git commands (prune and gc)
+        expected_git_commands = 2
         # Should run git prune and gc
-        assert mock_run.call_count == 2
+        assert mock_run.call_count == expected_git_commands
         mock_run.assert_any_call(
             ["git", "prune"],
             capture_output=True,
             text=True,
-            check=True
+            check=True,
         )
         mock_run.assert_any_call(
             ["git", "gc"],
             capture_output=True,
             text=True,
-            check=True
+            check=True,
         )
 
 
@@ -147,7 +151,7 @@ def test_fetch_and_prune(mock_run):
         ["git", "fetch", "-p"],
         capture_output=True,
         text=True,
-        check=True
+        check=True,
     )
 
 
@@ -155,6 +159,6 @@ def test_filter_protected_branches():
     """Test filtering protected branches."""
     branches = ["main", "develop", "feature/123"]
     protected = ["main", "master"]
-    
+
     filtered = git.filter_protected_branches(branches, protected)
     assert filtered == ["develop", "feature/123"]
