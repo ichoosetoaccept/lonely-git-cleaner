@@ -3,6 +3,7 @@
 
 import typer
 from rich.console import Console
+from rich.progress import Progress, SpinnerColumn, TextColumn
 from rich.prompt import Confirm
 
 from . import config, git
@@ -84,9 +85,19 @@ def optimize_repository(cfg: config.Config) -> None:
     if cfg.skip_gc or cfg.dry_run_by_default:
         return
 
-    console.print("\n⚡ [blue]Optimizing repository...[/blue]")
     try:
-        git.optimize_repo()
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[blue]{task.description}[/blue]"),
+            console=console,
+        ) as progress:
+            task_id = progress.add_task("⚡ Optimizing repository...", total=None)
+            git.optimize_repo(
+                progress_callback=lambda msg: progress.update(
+                    task_id,
+                    description=f"⚡ {msg}",
+                ),
+            )
         console.print("[green]Repository optimized successfully.[/green]")
     except git.GitError as e:
         console.print(f"[red]Error optimizing repository: {e!s}[/red]")
@@ -168,9 +179,19 @@ def main(
         console.print("[yellow]DRY RUN: No changes will be made[/yellow]")
 
     # Update repository state
-    console.print("\n🔄 [blue]Fetching and pruning remotes...[/blue]")
     if not cfg.dry_run_by_default:
-        git.fetch_and_prune()
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[blue]{task.description}[/blue]"),
+            console=console,
+        ) as progress:
+            task_id = progress.add_task("🔄 Updating repository state...", total=None)
+            git.fetch_and_prune(
+                progress_callback=lambda msg: progress.update(
+                    task_id,
+                    description=f"🔄 {msg}",
+                ),
+            )
 
     # Process branches
     handle_gone_branches(cfg)

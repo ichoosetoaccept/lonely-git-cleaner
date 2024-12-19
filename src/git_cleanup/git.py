@@ -1,6 +1,7 @@
 """Git operations for branch cleanup."""
 
 import subprocess
+from collections.abc import Callable
 from pathlib import Path
 
 
@@ -74,7 +75,7 @@ def delete_branch(branch: str, force: bool = False) -> None:
     run_git_command(command)
 
 
-def optimize_repo() -> None:
+def optimize_repo(progress_callback: Callable[[str], None] | None = None) -> None:
     """Run git gc and prune operations."""
     # Remove any existing gc.log
     try:
@@ -83,15 +84,26 @@ def optimize_repo() -> None:
         pass
 
     # Run prune
+    if progress_callback:
+        progress_callback("Pruning unreachable objects...")
     run_git_command(["prune"])
 
     # Run garbage collection
+    if progress_callback:
+        progress_callback("Running garbage collection...")
     run_git_command(["gc"])
 
+    if progress_callback:
+        progress_callback("Repository optimization complete")
 
-def fetch_and_prune() -> None:
+
+def fetch_and_prune(progress_callback: Callable[[str], None] | None = None) -> None:
     """Fetch from remotes and prune."""
+    if progress_callback:
+        progress_callback("Fetching from remotes...")
     run_git_command(["fetch", "-p"])
+    if progress_callback:
+        progress_callback("Pruning old references...")
 
 
 def filter_protected_branches(branches: list[str], protected: list[str]) -> list[str]:

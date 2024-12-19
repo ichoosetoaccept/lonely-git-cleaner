@@ -24,10 +24,10 @@ def mock_git():
     with patch.multiple(
         "git_cleanup.git",
         is_git_repo=lambda: True,
-        fetch_and_prune=lambda: None,
+        fetch_and_prune=lambda progress_callback=None: None,
         get_gone_branches=lambda: [],
         get_merged_branches=lambda: [],
-        optimize_repo=lambda: None,
+        optimize_repo=lambda progress_callback=None: None,
         delete_branch=lambda *args, **kwargs: None,
     ) as mocks:
         yield mocks
@@ -104,6 +104,68 @@ def test_main_interactive_mode(mock_config):
         result = runner.invoke(cli.app, ["--interactive"], input="n\n")
         assert result.exit_code == 0
         assert "Delete branch feature/123?" in result.stdout
+
+
+def test_fetch_prune_progress(mock_config):
+    """Test progress bar during fetch and prune operations."""
+    with patch.multiple(
+        "git_cleanup.git",
+        is_git_repo=lambda: True,
+        get_gone_branches=lambda: [],
+        get_merged_branches=lambda: [],
+    ), patch("git_cleanup.git.fetch_and_prune") as mock_fetch:
+        result = runner.invoke(cli.app)
+        assert result.exit_code == 0
+
+        # Verify fetch_and_prune was called with a progress callback
+        assert mock_fetch.call_count == 1
+        progress_callback = mock_fetch.call_args[1]["progress_callback"]
+        assert callable(progress_callback)
+
+        # Test the progress messages
+        with patch("rich.progress.Progress.update") as mock_update:
+            progress_callback("Fetching from remotes...")
+            progress_callback("Pruning old references...")
+
+            expected_fetch_prune_steps = 2  # Fetching and pruning steps
+            assert mock_update.call_count == expected_fetch_prune_steps
+            assert "🔄 Fetching from remotes..." in str(mock_update.call_args_list[0])
+            assert "🔄 Pruning old references..." in str(mock_update.call_args_list[1])
+
+
+def test_optimize_progress(mock_config):
+    """Test progress bar during repository optimization."""
+    with patch.multiple(
+        "git_cleanup.git",
+        is_git_repo=lambda: True,
+        get_gone_branches=lambda: [],
+        get_merged_branches=lambda: [],
+    ), patch("git_cleanup.git.optimize_repo") as mock_optimize:
+        result = runner.invoke(cli.app)
+        assert result.exit_code == 0
+
+        # Verify optimize_repo was called with a progress callback
+        assert mock_optimize.call_count == 1
+        progress_callback = mock_optimize.call_args[1]["progress_callback"]
+        assert callable(progress_callback)
+
+        # Test the progress messages
+        with patch("rich.progress.Progress.update") as mock_update:
+            progress_callback("Pruning unreachable objects...")
+            progress_callback("Running garbage collection...")
+            progress_callback("Repository optimization complete")
+
+            expected_optimize_steps = 3  # Pruning, GC, and completion steps
+            assert mock_update.call_count == expected_optimize_steps
+            assert "⚡ Pruning unreachable objects..." in str(
+                mock_update.call_args_list[0],
+            )
+            assert "⚡ Running garbage collection..." in str(
+                mock_update.call_args_list[1],
+            )
+            assert "⚡ Repository optimization complete" in str(
+                mock_update.call_args_list[2],
+            )
 
 
 def test_main_no_gc(mock_config):
