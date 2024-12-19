@@ -37,24 +37,20 @@ This sets up a development environment for contributing to the project:
 git clone https://github.com/yourusername/git-cleanup.git
 cd git-cleanup
 
-# Create and activate virtual environment
-uv venv .venv
-source .venv/bin/activate
-
-# Install in development mode with dev dependencies
-uv pip install -e ".[dev]"
+# Run the development setup script
+./scripts/install-dev.sh
 ```
 
-Important notes about development installation:
-- The virtual environment must be activated to run tests and development tools
-- You'll need to reactivate the virtual environment in new terminal sessions
-- The tool is only available while the virtual environment is active
-- To make development changes available globally, use the global installation method above
+The install script will:
+1. Create a virtual environment for development
+2. Install all development dependencies
+3. Make the development version available globally
 
-If you see "command not found" errors:
-1. Check if you're in the right directory
-2. Make sure the virtual environment is activated
-3. Try reactivating: `source .venv/bin/activate`
+After installation:
+- The `git-cleanup` command will be available globally
+- Changes you make to the code will be reflected immediately
+- Run tests with: `source .venv/bin/activate && pytest`
+- The virtual environment is only needed for running tests and development tools
 
 ## Usage (when in a git repository)
 
@@ -127,7 +123,7 @@ You can configure default behavior by creating a `.git-cleanuprc` file in your h
 ### Running Tests
 
 ```bash
-# Ensure virtual environment is activated
+# Activate the development environment
 source .venv/bin/activate
 
 # Run tests with coverage
