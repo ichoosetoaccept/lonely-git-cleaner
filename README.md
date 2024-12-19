@@ -3,8 +3,6 @@
 A comprehensive Git repository cleanup tool that safely removes stale branches and optimizes repository
 performance.
 
-Why lonely? Because it has zero external dependencies and uses pure git commands for everything.
-
 ## Features
 
 - 🧼 Safely Removes merged branches
@@ -16,23 +14,21 @@ Why lonely? Because it has zero external dependencies and uses pure git commands
 
 ## Installation
 
-### Using npm (Recommended)
+### Using uv (Recommended)
 
 ```bash
-npm install -g lonely-git-cleaner
+uv pip install git+https://github.com/yourusername/lonely-git-cleaner.git
 ```
 
-### Manual Installation
+### Development Installation
 
 ```bash
 # Clone the repository
 git clone https://github.com/yourusername/lonely-git-cleaner.git
+cd lonely-git-cleaner
 
-# Make the script executable
-chmod +x ./lonely-git-cleaner/bin/git-cleanup
-
-# Create a symbolic link to make it available globally
-ln -s "$(pwd)/lonely-git-cleaner/bin/git-cleanup" /usr/local/bin/
+# Install in development mode with dev dependencies
+uv pip install -e ".[dev]"
 ```
 
 ## Usage (when in a git repository)
@@ -94,6 +90,26 @@ You can configure default behavior by creating a `.git-cleanuprc` file in your h
   "skipGc": false,
   "reflogExpiry": "90.days"
 }
+```
+
+## Development
+
+### Requirements
+
+- Python 3.12 or higher
+- uv package manager
+
+### Running Tests
+
+```bash
+# Run tests with coverage
+pytest
+
+# Run linting
+ruff check .
+
+# Run formatting
+ruff format .
 ```
 
 ## Contributing
