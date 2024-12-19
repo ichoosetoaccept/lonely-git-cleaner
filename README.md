@@ -2,6 +2,8 @@
 
 A comprehensive Git repository cleanup tool that safely removes stale branches and optimizes repository performance.
 
+Why lonely? Because it has zero external dependencies and uses pure git commands for everything.
+
 ## Features
 
 - 🧼 Safely Removes merged branches
