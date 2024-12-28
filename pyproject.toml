@@ -1,0 +1,71 @@
+[project]
+name = "git-cleanup"
+version = "1.0.0"
+description = "A CLI tool to clean up git branches"
+authors = [{ name = "Ismar" }]
+dependencies = [
+    "typer>=0.9.0",
+    "rich>=13.7.0",
+    "pydantic>=2.5.2"
+]
+requires-python = ">=3.12"
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-cov>=4.1.0",
+    "pytest-mock>=3.12.0",
+    "ruff>=0.2.0",
+    "pre-commit>=4.0.0",
+    "mypy>=1.8.0"
+]
+
+[project.scripts]
+git-cleanup = "git_cleanup.cli:app"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+addopts = "-v --cov=git_cleanup"
+
+[tool.coverage.run]
+source = ["git_cleanup"]
+branch = true
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "if __name__ == .__main__.:",
+    "raise NotImplementedError",
+    "if TYPE_CHECKING:",
+]
+
+[tool.ruff]
+line-length = 88
+target-version = "py312"
+fix = true
+unsafe-fixes = true
+show-fixes = true
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes
+    "I",   # isort
+    "B",   # flake8-bugbear
+    "C",   # flake8-comprehensions
+    "UP",  # pyupgrade
+    "RUF", # ruff-specific rules
+    "PL",  # pylint
+    "N",   # pep8-naming
+    "D",   # pydocstyle
+    "COM", # flake8-commas
+]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+skip-magic-trailing-comma = false
+line-ending = "auto"

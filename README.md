@@ -1,53 +1,77 @@
-# lonely-git-cleaner 🧹
+# git-cleanup 🧹
 
-A comprehensive Git repository cleanup tool that safely removes stale branches and optimizes repository performance.
+[![Tests](https://github.com/ichoosetoaccept/lonely-git-cleaner/actions/workflows/test.yml/badge.svg)](https://github.com/ichoosetoaccept/lonely-git-cleaner/actions/workflows/test.yml)
+[![codecov](https://codecov.io/gh/ichoosetoaccept/lonely-git-cleaner/branch/main/graph/badge.svg)](https://codecov.io/gh/ichoosetoaccept/lonely-git-cleaner)
+[![Python 3.12+](https://img.shields.io/badge/python-3.12%2B-blue.svg)](https://www.python.org/downloads/)
 
-Why lonely? Because it has zero external dependencies and uses pure git commands for everything.
+A comprehensive Git repository cleanup tool that safely removes stale branches and optimizes repository
+performance.
 
 ## Features
 
 - 🧼 Safely Removes merged branches
 - 🔍 Detects and removes branches with gone remotes
 - 🗑️ Performs garbage collection and pruning
-- 🛡️ Protects main/master branches
+- 🛡️ Protects main branch
 - ⚡ Optimizes repository performance
 - 🔄 Automatic remote pruning
 
 ## Installation
 
-### Using npm (Recommended)
+### Global Installation (Recommended for Users)
+
+This installs the tool globally on your system, making it available in any terminal session:
+
 ```bash
-npm install -g lonely-git-cleaner
+uv pip install git+https://github.com/yourusername/git-cleanup.git
 ```
 
-### Manual Installation
+After installation:
+- The `git-cleanup` command will be available globally
+- No need to activate any virtual environment
+- Works in any terminal session or directory
+- Persists after terminal restarts
+
+### Development Installation
+
+This sets up a development environment for contributing to the project:
+
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/lonely-git-cleaner.git
+git clone https://github.com/yourusername/git-cleanup.git
+cd git-cleanup
 
-# Make the script executable
-chmod +x ./lonely-git-cleaner/bin/git-cleanup
-
-# Create a symbolic link to make it available globally
-ln -s "$(pwd)/lonely-git-cleaner/bin/git-cleanup" /usr/local/bin/
+# Run the development setup script
+./scripts/install-dev.sh
 ```
+
+The install script will:
+1. Create a virtual environment for development
+2. Install all development dependencies
+3. Make the development version available globally
+
+After installation:
+- The `git-cleanup` command will be available globally
+- Changes you make to the code will be reflected immediately
+- Run tests with: `source .venv/bin/activate && pytest`
+- The virtual environment is only needed for running tests and development tools
 
 ## Usage (when in a git repository)
 
 ```bash
-# Basic cleanup
+# Basic cleanup (will ask for confirmation)
 git-cleanup
 
 # With dry run (shows what would be deleted without actually deleting)
 git-cleanup --dry-run
 
-# Interactive mode (asks before each deletion)
-git-cleanup --interactive
+# Non-interactive mode (no confirmation prompts)
+git-cleanup --no-interactive
 
 # Skip garbage collection
 git-cleanup --no-gc
 
-# Specify protected branches (default: main,master)
+# Specify protected branches (default: main)
 git-cleanup --protect "main,develop,staging"
 ```
 
@@ -60,15 +84,16 @@ git-cleanup --protect "main,develop,staging"
 
 ## Safety Features
 
-- Never deletes protected branches (main/master by default)
+- Interactive by default - asks for confirmation before deleting branches
+- Never deletes protected branches (main by default)
 - Only deletes branches that are fully merged or have gone remotes
 - Provides dry-run mode to preview changes
-- Interactive mode for controlled cleanup
 - Maintains Git's reflog for recovery (default: 90 days)
 
 ## Recovery
 
-If you accidentally delete a branch, you can recover it within Git's reflog expiry period (default: 90 days):
+If you accidentally delete a branch, you can recover it within Git's reflog expiry period
+(default: 90 days):
 
 ```bash
 # See the reflog entries
@@ -84,13 +109,42 @@ You can configure default behavior by creating a `.git-cleanuprc` file in your h
 
 ```json
 {
-  "protectedBranches": ["main", "master", "develop"],
+  "protectedBranches": ["main", "develop"],
   "dryRunByDefault": false,
   "interactive": false,
   "skipGc": false,
   "reflogExpiry": "90.days"
 }
 ```
+
+## Development
+
+### Requirements
+
+- Python 3.12 or higher
+- uv package manager
+
+### Running Tests
+
+```bash
+# Activate the development environment
+source .venv/bin/activate
+
+# Run tests with coverage
+pytest  # Coverage config is in pyproject.toml
+
+# Run linting
+ruff check .
+
+# Run formatting
+ruff format .
+```
+
+Test coverage includes:
+- CLI functionality and options
+- Git operations and error handling
+- Progress bars and visual feedback
+- Configuration management
 
 ## Contributing
 
