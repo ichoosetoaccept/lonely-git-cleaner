@@ -2,7 +2,8 @@ name: Tests
 
 on:
   push:
-    branches: [ main ]
+    branches:
+      - '**'
   pull_request:
     branches: [ main ]
 
@@ -40,8 +41,7 @@ jobs:
       uses: codecov/codecov-action@v4
       with:
         file: ./coverage.xml
-        fail_ci_if_error: true
-        token: ${{ secrets.CODECOV_TOKEN }}
+        fail_ci_if_error: ${{ github.event_name == 'pull_request' && github.base_ref == 'main' }}
 
     - name: Run pre-commit checks
       run: |

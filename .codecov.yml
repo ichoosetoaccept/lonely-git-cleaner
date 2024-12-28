@@ -4,15 +4,18 @@ coverage:
       default:
         target: 90%
         threshold: 1%
+        only_pulls: true
     patch:
       default:
         target: 95%
         threshold: 1%
+        only_pulls: true
 
 comment:
   layout: "reach, diff, flags, files"
   behavior: default
   require_changes: true
+  show_carryforward_flags: true
 
 ignore:
   - "tests/"
