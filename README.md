@@ -55,14 +55,14 @@ After installation:
 ## Usage (when in a git repository)
 
 ```bash
-# Basic cleanup
+# Basic cleanup (will ask for confirmation)
 git-cleanup
 
 # With dry run (shows what would be deleted without actually deleting)
 git-cleanup --dry-run
 
-# Interactive mode (asks before each deletion)
-git-cleanup --interactive
+# Non-interactive mode (no confirmation prompts)
+git-cleanup --no-interactive
 
 # Skip garbage collection
 git-cleanup --no-gc
@@ -80,10 +80,10 @@ git-cleanup --protect "main,develop,staging"
 
 ## Safety Features
 
+- Interactive by default - asks for confirmation before deleting branches
 - Never deletes protected branches (main by default)
 - Only deletes branches that are fully merged or have gone remotes
 - Provides dry-run mode to preview changes
-- Interactive mode for controlled cleanup
 - Maintains Git's reflog for recovery (default: 90 days)
 
 ## Recovery

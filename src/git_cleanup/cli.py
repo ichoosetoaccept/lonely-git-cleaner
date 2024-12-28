@@ -65,15 +65,37 @@ def handle_merged_branches(cfg: config.Config) -> None:
 
 def delete_branches(
     branches: list[str],
-    interactive: bool,
+    interactive: bool = True,
     force: bool = False,
 ) -> None:
-    """Delete the given branches."""
+    """Delete the given branches.
+
+    Args:
+    ----
+        branches: List of branch names to delete
+        interactive: Whether to ask for confirmation before deleting (defaults to True)
+        force: Whether to force delete branches (-D instead of -d)
+
+    """
+    if not branches:
+        return
+
+    if interactive:
+        console.print("\n[yellow]The following branches will be deleted:[/yellow]")
+        for branch in branches:
+            console.print(f"  [yellow]{branch}[/yellow]")
+
+        prompt = "\n[yellow]Do you want to proceed with deletion?[/yellow]"
+        if not Confirm.ask(prompt, default=False):
+            console.print("[blue]Skipping branch deletion.[/blue]")
+            return
+
     for branch in branches:
-        if interactive:
-            if not Confirm.ask(f"Delete branch {branch}?", default=False):
-                continue
         try:
+            if interactive:
+                if not Confirm.ask(f"Delete branch {branch}?", default=False):
+                    console.print(f"[blue]Skipping branch {branch}[/blue]")
+                    continue
             git.delete_branch(branch, force=force)
             console.print(f"[green]Deleted branch {branch}[/green]")
         except git.GitError as e:
@@ -128,11 +150,11 @@ dry_run_option = typer.Option(
     "-d",
     help="Show what would be deleted without actually deleting",
 )
-interactive_option = typer.Option(
+no_interactive_option = typer.Option(
     False,
-    "--interactive",
-    "-i",
-    help="Ask before each deletion",
+    "--no-interactive",
+    "-n",
+    help="Don't ask for confirmation before deleting branches",
 )
 no_gc_option = typer.Option(
     False,
@@ -160,7 +182,7 @@ protect_option = typer.Option(
 @app.command()
 def main(
     dry_run: bool = dry_run_option,
-    interactive: bool = interactive_option,
+    no_interactive: bool = no_interactive_option,
     no_gc: bool = no_gc_option,
     protect: str = protect_option,
 ) -> None:
@@ -170,7 +192,7 @@ def main(
 
     # Load and update configuration
     cfg = config.load_config()
-    update_config_from_options(cfg, dry_run, interactive, no_gc, protect)
+    update_config_from_options(cfg, dry_run, not no_interactive, no_gc, protect)
 
     # Start cleanup
     console.print("🧹 [blue]Starting git cleanup...[/blue]")
