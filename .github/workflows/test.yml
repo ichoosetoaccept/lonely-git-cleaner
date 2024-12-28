@@ -42,6 +42,7 @@ jobs:
       with:
         file: ./coverage.xml
         fail_ci_if_error: ${{ github.event_name == 'pull_request' && github.base_ref == 'main' }}
+        token: ''
 
     - name: Run pre-commit checks
       run: |
