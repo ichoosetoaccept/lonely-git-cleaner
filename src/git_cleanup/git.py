@@ -70,8 +70,21 @@ def get_merged_branches() -> list[str]:
 
 
 def delete_branch(branch: str, force: bool = False) -> None:
-    """Delete a git branch."""
-    command = ["branch", "-D" if force else "-d", branch]
+    """Delete a git branch.
+
+    Args:
+    ----
+        branch: The name of the branch to delete
+        force: Whether to force delete the branch (-D instead of -d)
+
+    Raises:
+    ------
+        GitError: If the branch deletion fails
+
+    """
+    # Escape special characters in branch name
+    escaped_branch = branch.replace("*", "\\*")
+    command = ["branch", "-D" if force else "-d", escaped_branch]
     run_git_command(command)
 
 

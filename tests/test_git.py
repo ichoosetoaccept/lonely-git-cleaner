@@ -123,6 +123,17 @@ def test_delete_branch_force(mock_run):
     )
 
 
+def test_delete_branch_with_special_chars(mock_run):
+    """Test branch deletion with special characters."""
+    git.delete_branch("feature/*123")
+    mock_run.assert_called_once_with(
+        ["git", "branch", "-d", "feature/\\*123"],
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+
+
 def test_optimize_repo(mock_run):
     """Test repository optimization."""
     with patch("pathlib.Path.unlink") as mock_unlink:
