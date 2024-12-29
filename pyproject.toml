@@ -1,8 +1,8 @@
 [project]
-name = "git-cleanup"
-version = "1.0.0"
+name = "arborist"
+version = "0.0.1"
 description = "A CLI tool to clean up git branches"
-authors = [{ name = "Ismar" }]
+authors = [{ name = "Ismar Iljazovic" }]
 dependencies = [
     "typer>=0.9.0",
     "rich>=13.7.0",
@@ -21,15 +21,15 @@ dev = [
 ]
 
 [project.scripts]
-git-cleanup = "git_cleanup.cli:app"
+arb = "arborist.cli:app"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 python_files = ["test_*.py"]
-addopts = "-v --cov=git_cleanup"
+addopts = "-v --cov=arborist"
 
 [tool.coverage.run]
-source = ["git_cleanup"]
+source = ["arborist"]
 branch = true
 
 [tool.coverage.report]
@@ -44,24 +44,23 @@ exclude_lines = [
 [tool.ruff]
 line-length = 88
 target-version = "py312"
-fix = true
-unsafe-fixes = true
-show-fixes = true
 
 [tool.ruff.lint]
-select = [
-    "E",   # pycodestyle errors
-    "W",   # pycodestyle warnings
-    "F",   # pyflakes
-    "I",   # isort
-    "B",   # flake8-bugbear
-    "C",   # flake8-comprehensions
+extend-select = [
+    "B",  # flake8-bugbear
+    "C",  # flake8-comprehensions
+    "I",  # isort
+    "N",  # pep8-naming
     "UP",  # pyupgrade
-    "RUF", # ruff-specific rules
+    "RUF",  # ruff-specific rules
+    "D",  # pydocstyle
     "PL",  # pylint
-    "N",   # pep8-naming
-    "D",   # pydocstyle
-    "COM", # flake8-commas
+]
+ignore = [
+    "D211",  # no-blank-line-before-class (conflicts with D203)
+    "D213",  # multi-line-summary-second-line (conflicts with D212)
+    "COM812",  # missing-trailing-comma (conflicts with formatter)
+    "D203",  # one-blank-line-before-class (conflicts with formatter)
 ]
 
 [tool.ruff.format]

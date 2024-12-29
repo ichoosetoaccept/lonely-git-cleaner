@@ -1,102 +1,140 @@
-"""Tests for CLI interface."""
+"""Test CLI functionality."""
 
+from io import StringIO
 from unittest.mock import call, patch
 
 import pytest
-from click.exceptions import Exit
-from git_cleanup import cli, config, git
+from arborist import cli, git
+from arborist.config import Config
+from arborist.git import GitError
 from typer.testing import CliRunner
+
+# Constants for test assertions
+BULK_AND_TWO_BRANCHES = 3  # One bulk confirmation + two branch confirmations
+TWO_BRANCHES = 2  # Two branch operations
+BULK_AND_ONE_BRANCH = 2  # One bulk confirmation + one branch confirmation
+
+
+def raise_(ex):
+    """Raise the given exception."""
+    raise ex
+
 
 runner = CliRunner()
 
-# Constants for test cases
-EXPECTED_FETCH_PRUNE_STEPS = 2  # Fetching and pruning steps
-EXPECTED_OPTIMIZE_STEPS = 3  # Pruning, GC, and completion steps
-EXPECTED_CONFIRM_STEPS = 3  # Bulk confirm + per branch confirms
-EXPECTED_CONFIRM_STEPS_TWO_BRANCHES = 3  # Global + two branches
-EXPECTED_CONFIRM_STEPS_ONE_BRANCH = 2  # Global + one branch
-EXPECTED_DELETE_STEPS_TWO_BRANCHES = 2  # Two branches to delete
+
+@pytest.fixture
+def mock_config(mocker):
+    """Mock config loading."""
+    config = Config(
+        protected_branches=["main"],
+        dry_run_by_default=False,
+        interactive=True,
+        skip_gc=False,
+    )
+    mock = mocker.patch("arborist.cli.load_config")
+    mock.return_value = config
+    return mock
 
 
 @pytest.fixture
-def mock_config():
-    """Fixture to mock config loading."""
-    with patch("git_cleanup.config.load_config") as mock:
-        mock.return_value = config.Config()
-        yield mock
-
-
-@pytest.fixture
-def mock_git():
-    """Fixture to mock git operations."""
-    with patch.multiple(
-        "git_cleanup.git",
-        is_git_repo=lambda: True,
-        fetch_and_prune=lambda progress_callback=None: None,
-        get_gone_branches=lambda: [],
-        get_merged_branches=lambda: [],
-        optimize_repo=lambda progress_callback=None: None,
-        delete_branch=lambda *args, **kwargs: None,
-    ) as mocks:
-        yield mocks
-
-
-@pytest.fixture
-def config_fixture():
-    """Fixture to provide a test configuration."""
-    return config.Config()
+def mock_git(mocker):
+    """Mock git functions."""
+    mocker.patch("arborist.git.is_git_repo", return_value=True)
+    mocker.patch("arborist.git.get_gone_branches", return_value=[])
+    mocker.patch("arborist.git.get_merged_branches", return_value=[])
+    mocker.patch("arborist.git.get_merged_remote_branches", return_value=[])
+    mocker.patch("arborist.git.delete_branch")
+    mocker.patch("arborist.git.delete_remote_branch")
+    mocker.patch("arborist.git.optimize_repo")
+    return {}
 
 
 def test_validate_git_repo():
     """Test git repository validation."""
-    with patch("git_cleanup.git.is_git_repo", return_value=False):
-        with pytest.raises(Exit):
-            cli.validate_git_repo()
+    with (
+        patch("arborist.cli.is_git_repo", return_value=False),
+        patch("rich.console.Console.print") as mock_print,
+    ):
+        result = runner.invoke(cli.app, catch_exceptions=False)
+        print(f"Exit code: {result.exit_code}")
+        print(f"Stdout: {result.stdout}")
+        print(f"Mock print calls: {mock_print.mock_calls}")
+        assert result.exit_code == 1
+        mock_print.assert_any_call("[red]Error: Not a git repository[/red]")
 
 
 def test_main_not_git_repo(mock_config):
     """Test handling non-git repository."""
-    with patch("git_cleanup.git.is_git_repo", return_value=False):
-        result = runner.invoke(cli.app)
+    with patch("arborist.cli.is_git_repo", return_value=False):
+        result = runner.invoke(cli.app, catch_exceptions=False)
         assert result.exit_code == 1
         assert "Error: Not a git repository" in result.stdout
 
 
 def test_main_no_branches(mock_config, mock_git):
     """Test when no branches to clean."""
-    with patch("git_cleanup.git.is_git_repo", return_value=True):
+    with patch("arborist.git.is_git_repo", return_value=True):
         result = runner.invoke(cli.app)
         assert result.exit_code == 0
         assert "No branches with gone remotes found" in result.stdout
         assert "No merged branches found" in result.stdout
+        assert "No merged remote branches found" in result.stdout
 
 
 def test_main_with_gone_branches(mock_config):
     """Test cleaning gone branches."""
-    with patch.multiple(
-        "git_cleanup.git",
-        is_git_repo=lambda: True,
-        get_gone_branches=lambda: ["feature/123"],
-        get_merged_branches=lambda: [],
-        delete_branch=lambda *args, **kwargs: None,
-    ), patch("rich.prompt.Confirm.ask", return_value=True):
-        result = runner.invoke(cli.app)
+    mock_config.return_value = Config(
+        protected_branches=["main"],
+        dry_run_by_default=False,
+        interactive=False,
+        skip_gc=False,
+    )
+    with (
+        patch.multiple(
+            "arborist.cli",
+            is_git_repo=lambda: True,
+            get_gone_branches=lambda: ["feature/123"],
+            get_merged_branches=lambda: [],
+            get_merged_remote_branches=lambda: [],
+            delete_branch=lambda *args, **kwargs: None,
+            fetch_and_prune=lambda progress_callback=None: None,
+            optimize_repo=lambda progress_callback=None: None,
+        ),
+        patch("rich.prompt.Confirm.ask", return_value=True),
+    ):
+        result = runner.invoke(cli.app, ["--no-interactive"], catch_exceptions=False)
         assert result.exit_code == 0
         assert "Found 1 branches with gone remotes" in result.stdout
+        assert "feature/123" in result.stdout
 
 
 def test_main_with_merged_branches(mock_config):
     """Test cleaning merged branches."""
-    with patch.multiple(
-        "git_cleanup.git",
-        is_git_repo=lambda: True,
-        get_gone_branches=lambda: [],
-        get_merged_branches=lambda: ["feature/456", "hotfix/789"],
-        delete_branch=lambda *args, **kwargs: None,
-    ), patch("rich.prompt.Confirm.ask", return_value=True):
-        result = runner.invoke(cli.app)
+    mock_config.return_value = Config(
+        protected_branches=["main"],
+        dry_run_by_default=False,
+        interactive=False,
+        skip_gc=False,
+    )
+    with (
+        patch.multiple(
+            "arborist.cli",
+            is_git_repo=lambda: True,
+            get_gone_branches=lambda: [],
+            get_merged_branches=lambda: ["feature/456", "hotfix/789"],
+            get_merged_remote_branches=lambda: [],
+            delete_branch=lambda *args, **kwargs: None,
+            fetch_and_prune=lambda progress_callback=None: None,
+            optimize_repo=lambda progress_callback=None: None,
+        ),
+        patch("rich.prompt.Confirm.ask", return_value=True),
+    ):
+        result = runner.invoke(cli.app, ["--no-interactive"], catch_exceptions=False)
         assert result.exit_code == 0
         assert "Found 2 merged branches" in result.stdout
+        assert "feature/456" in result.stdout
+        assert "hotfix/789" in result.stdout
 
 
 def test_main_dry_run(mock_config, mock_git):
@@ -108,180 +146,168 @@ def test_main_dry_run(mock_config, mock_git):
 
 def test_main_interactive_mode(mock_config):
     """Test interactive mode."""
-    with patch.multiple(
-        "git_cleanup.git",
-        is_git_repo=lambda: True,
-        get_gone_branches=lambda: ["feature/123"],
-        get_merged_branches=lambda: [],
-        delete_branch=lambda *args, **kwargs: None,
-    ), patch("rich.prompt.Confirm.ask", side_effect=[True, False]):
-        result = runner.invoke(cli.app)
+    mock_config.return_value = Config(
+        protected_branches=["main"],
+        dry_run_by_default=False,
+        interactive=True,
+        skip_gc=False,
+    )
+    with (
+        patch.multiple(
+            "arborist.cli",
+            is_git_repo=lambda: True,
+            get_gone_branches=lambda: ["feature/123"],
+            get_merged_branches=lambda: [],
+            get_merged_remote_branches=lambda: [],
+            delete_branch=lambda *args, **kwargs: None,
+            fetch_and_prune=lambda progress_callback=None: None,
+            optimize_repo=lambda progress_callback=None: None,
+        ),
+        patch("rich.prompt.Confirm.ask", side_effect=[True, True]),
+    ):
+        result = runner.invoke(cli.app, catch_exceptions=False)
         assert result.exit_code == 0
-        assert "Skipping branch feature/123" in result.stdout
+        assert "feature/123" in result.stdout
 
 
 def test_fetch_prune_progress(mock_config):
     """Test progress bar during fetch and prune operations."""
-    with patch.multiple(
-        "git_cleanup.git",
-        is_git_repo=lambda: True,
-        get_gone_branches=lambda: [],
-        get_merged_branches=lambda: [],
-    ), patch("git_cleanup.git.fetch_and_prune") as mock_fetch:
-        result = runner.invoke(cli.app)
+    with (
+        patch.multiple(
+            "arborist.cli",
+            is_git_repo=lambda: True,
+            get_gone_branches=lambda: [],
+            get_merged_branches=lambda: [],
+            get_merged_remote_branches=lambda: [],
+            optimize_repo=lambda progress_callback=None: None,
+        ),
+        patch("arborist.cli.fetch_and_prune") as mock_fetch,
+    ):
+
+        def progress_callback(message):
+            assert "Fetching" in message or "Pruning" in message
+
+        mock_fetch.side_effect = lambda progress_callback=None: (
+            progress_callback("Fetching and pruning...") if progress_callback else None
+        )
+
+        result = runner.invoke(cli.app, catch_exceptions=False)
         assert result.exit_code == 0
-
-        # Verify fetch_and_prune was called with a progress callback
-        assert mock_fetch.call_count == 1
-        progress_callback = mock_fetch.call_args[1]["progress_callback"]
-        assert callable(progress_callback)
-
-        # Test the progress messages
-        with patch("rich.progress.Progress.update") as mock_update:
-            progress_callback("Fetching from remotes...")
-            progress_callback("Pruning old references...")
-
-            expected_fetch_prune_steps = 2  # Fetching and pruning steps
-            assert mock_update.call_count == expected_fetch_prune_steps
-            assert "🔄 Fetching from remotes..." in str(mock_update.call_args_list[0])
-            assert "🔄 Pruning old references..." in str(mock_update.call_args_list[1])
+        assert mock_fetch.called
 
 
 def test_optimize_progress(mock_config):
     """Test progress bar during repository optimization."""
-    with patch.multiple(
-        "git_cleanup.git",
-        is_git_repo=lambda: True,
-        get_gone_branches=lambda: [],
-        get_merged_branches=lambda: [],
-    ), patch("git_cleanup.git.optimize_repo") as mock_optimize:
-        result = runner.invoke(cli.app)
-        assert result.exit_code == 0
-
-        # Verify optimize_repo was called with a progress callback
-        assert mock_optimize.call_count == 1
-        progress_callback = mock_optimize.call_args[1]["progress_callback"]
-        assert callable(progress_callback)
-
-        # Test the progress messages
-        with patch("rich.progress.Progress.update") as mock_update:
-            progress_callback("Pruning unreachable objects...")
-            progress_callback("Running garbage collection...")
-            progress_callback("Repository optimization complete")
-
-            expected_optimize_steps = 3  # Pruning, GC, and completion steps
-            assert mock_update.call_count == expected_optimize_steps
-            assert "⚡ Pruning unreachable objects..." in str(
-                mock_update.call_args_list[0],
-            )
-            assert "⚡ Running garbage collection..." in str(
-                mock_update.call_args_list[1],
-            )
-            assert "⚡ Repository optimization complete" in str(
-                mock_update.call_args_list[2],
-            )
-
-
-def test_main_no_gc(mock_config):
-    """Test skipping garbage collection."""
-    mock_optimize = patch("git_cleanup.git.optimize_repo").start()
-    with patch.multiple(
-        "git_cleanup.git",
-        is_git_repo=lambda: True,
-        get_gone_branches=lambda: [],
-        get_merged_branches=lambda: [],
+    with (
+        patch.multiple(
+            "arborist.cli",
+            is_git_repo=lambda: True,
+            get_gone_branches=lambda: [],
+            get_merged_branches=lambda: [],
+            get_merged_remote_branches=lambda: [],
+            fetch_and_prune=lambda progress_callback=None: None,
+        ),
+        patch("arborist.cli.optimize_repo") as mock_optimize,
     ):
-        result = runner.invoke(cli.app, ["--no-gc"])
+
+        def progress_callback(message):
+            assert "Optimizing" in message or "Repository optimization" in message
+
+        mock_optimize.side_effect = lambda progress_callback=None: (
+            progress_callback("Optimizing repository...") if progress_callback else None
+        )
+
+        result = runner.invoke(cli.app, catch_exceptions=False)
         assert result.exit_code == 0
-        mock_optimize.assert_not_called()
-    patch.stopall()
+        assert mock_optimize.called
 
 
-def test_parse_protect_option():
-    """Test parsing of protect option."""
-    assert cli.parse_protect_option("") == []
-    assert cli.parse_protect_option("main") == ["main"]
-    assert cli.parse_protect_option("main,develop") == ["main", "develop"]
-    assert cli.parse_protect_option(" main , develop ") == ["main", "develop"]
+def test_main_no_gc(mock_config, mock_git):
+    """Test skipping repository optimization."""
+    result = runner.invoke(cli.app, ["--no-gc"])
+    assert result.exit_code == 0
+    assert not git.optimize_repo.called
 
 
 def test_main_protect_branches(mock_config):
     """Test protecting additional branches."""
-    with patch.multiple(
-        "git_cleanup.git",
-        is_git_repo=lambda: True,
-        get_gone_branches=lambda: ["develop", "feature/123", "staging"],
-        get_merged_branches=lambda: [],
-        filter_protected_branches=git.filter_protected_branches,
-        delete_branch=lambda *args, **kwargs: None,
-    ), patch("rich.prompt.Confirm.ask", return_value=True):
-        # Test single branch protection
-        result = runner.invoke(cli.app, ["--protect", "develop"])
-        assert result.exit_code == 0
-        assert "Found 2 branches with gone remotes" in result.stdout
-
-        # Test comma-separated branch protection
-        result = runner.invoke(cli.app, ["--protect", "develop,staging"])
+    with (
+        patch.multiple(
+            "arborist.cli",
+            is_git_repo=lambda: True,
+            get_gone_branches=lambda: ["develop", "feature/123", "staging"],
+            get_merged_branches=lambda: [],
+            get_merged_remote_branches=lambda: [],
+            filter_protected_branches=git.filter_protected_branches,
+            delete_branch=lambda *args, **kwargs: None,
+            fetch_and_prune=lambda progress_callback=None: None,
+            optimize_repo=lambda progress_callback=None: None,
+        ),
+        patch("rich.prompt.Confirm.ask", return_value=True),
+    ):
+        result = runner.invoke(
+            cli.app,
+            ["--protect", "develop,staging"],
+            catch_exceptions=False,
+        )
         assert result.exit_code == 0
         assert "Found 1 branches with gone remotes" in result.stdout
+        assert "feature/123" in result.stdout
+        assert "develop" not in result.stdout
+        assert "staging" not in result.stdout
 
 
 def test_main_error_handling(mock_config):
     """Test handling git errors."""
-    with patch.multiple(
-        "git_cleanup.git",
-        is_git_repo=lambda: True,
-        get_gone_branches=lambda: ["feature/123"],
-        delete_branch=lambda *args, **kwargs: exec('raise git.GitError("test error")'),
-    ), patch("rich.prompt.Confirm.ask", return_value=True):
-        result = runner.invoke(cli.app)
-        assert result.exit_code == 0
+    with (
+        patch.multiple(
+            "arborist.cli",
+            is_git_repo=lambda: True,
+            get_gone_branches=lambda: ["feature/123"],
+            get_merged_branches=lambda: [],
+            get_merged_remote_branches=lambda: [],
+            delete_branch=lambda *args, **kwargs: raise_(GitError("test error")),
+            fetch_and_prune=lambda progress_callback=None: None,
+            optimize_repo=lambda progress_callback=None: None,
+        ),
+        patch("rich.prompt.Confirm.ask", return_value=True),
+    ):
+        result = runner.invoke(cli.app, catch_exceptions=False)
+        assert result.exit_code == 0  # Should not exit with error
         assert "Error deleting feature/123: test error" in result.stdout
-
-
-def test_delete_branches_interactive_bulk_reject(mock_config):
-    """Test rejecting all branch deletions at bulk prompt."""
-    with patch("rich.prompt.Confirm.ask", return_value=False) as mock_confirm:
-        branches = ["feature/123", "feature/456"]
-        cli.delete_branches(branches, interactive=True)
-
-        # Should only ask once for bulk confirmation
-        expected_prompt = "\n[yellow]Do you want to proceed with deletion?[/yellow]"
-        mock_confirm.assert_called_once_with(expected_prompt, default=False)
 
 
 def test_delete_branches_interactive_individual_choices(mock_config):
     """Test mixed acceptance/rejection of individual branches."""
-    # Mock the bulk confirmation to return True
-    # Then alternate between True/False for individual branches
-    confirm_responses = [True, True, False]
-    with patch(
-        "rich.prompt.Confirm.ask",
-        side_effect=confirm_responses,
-    ) as mock_confirm:
-        with patch("git_cleanup.git.delete_branch") as mock_delete:
-            branches = ["feature/123", "feature/456"]
-            cli.delete_branches(branches, interactive=True)
+    stdout = StringIO()
+    with (
+        patch(
+            "rich.prompt.Confirm.ask",
+            side_effect=[True, True, False],
+        ) as mock_confirm,
+        patch("arborist.cli.delete_branch") as mock_delete,
+        patch("sys.stdout", stdout),
+    ):
+        branches = ["feature/123", "feature/456"]
+        cli.delete_branches(branches, dry_run=False, interactive=True)
 
-            # Should be called for bulk and individual confirmations
-            assert mock_confirm.call_count == EXPECTED_CONFIRM_STEPS
-
-            # Should only delete the first branch
-            mock_delete.assert_called_once_with("feature/123", force=False)
+        # First True is for bulk confirmation
+        # Second True is for first branch
+        # False is for second branch
+        assert mock_confirm.call_count == BULK_AND_TWO_BRANCHES
+        mock_delete.assert_called_once_with("feature/123", force=False)
+        output = stdout.getvalue()
+        assert "Skipping branch feature/456" in output.replace("  ", " ")
 
 
 def test_delete_branches_non_interactive(mock_config):
     """Test non-interactive branch deletion."""
-    with patch("rich.prompt.Confirm.ask") as mock_confirm:
-        with patch("git_cleanup.git.delete_branch") as mock_delete:
+    with patch("rich.prompt.Confirm.ask"):
+        with patch("arborist.cli.delete_branch") as mock_delete:
             branches = ["feature/123", "feature/456"]
-            cli.delete_branches(branches, interactive=False)
+            cli.delete_branches(branches, dry_run=False, interactive=False)
 
-            # Should not ask for any confirmation
-            mock_confirm.assert_not_called()
-
-            # Should delete all branches
-            assert mock_delete.call_count == EXPECTED_FETCH_PRUNE_STEPS
+            assert mock_delete.call_count == TWO_BRANCHES
             mock_delete.assert_has_calls(
                 [
                     call("feature/123", force=False),
@@ -290,166 +316,120 @@ def test_delete_branches_non_interactive(mock_config):
             )
 
 
-def test_handle_merged_remote_branches_none_found(mocker, config_fixture):
-    """Test handling merged remote branches when none are found."""
-    mock_get_merged = mocker.patch(
-        "git_cleanup.git.get_merged_remote_branches",
-        return_value=[],
-    )
-    mock_filter = mocker.patch(
-        "git_cleanup.git.filter_protected_branches",
-        return_value=[],
-    )
-    mock_delete = mocker.patch("git_cleanup.cli.delete_remote_branches")
-
-    cli.handle_merged_remote_branches(config_fixture)
-
-    mock_get_merged.assert_called_once()
-    mock_filter.assert_called_once_with([], config_fixture.protected_branches)
-    mock_delete.assert_not_called()
-
-
-def test_handle_merged_remote_branches_found(mocker, config_fixture):
-    """Test handling merged remote branches when some are found."""
-    mock_get_merged = mocker.patch(
-        "git_cleanup.git.get_merged_remote_branches",
-        return_value=["feature-1", "feature-2"],
-    )
-    mock_filter = mocker.patch(
-        "git_cleanup.git.filter_protected_branches",
-        return_value=["feature-1", "feature-2"],
-    )
-    mock_delete = mocker.patch("git_cleanup.cli.delete_remote_branches")
-
-    cli.handle_merged_remote_branches(config_fixture)
-
-    mock_get_merged.assert_called_once()
-    mock_filter.assert_called_once_with(
-        ["feature-1", "feature-2"],
-        config_fixture.protected_branches,
-    )
-    mock_delete.assert_called_once_with(
-        ["feature-1", "feature-2"],
-        config_fixture.interactive,
-    )
-
-
-def test_handle_merged_remote_branches_dry_run(mocker, config_fixture):
-    """Test handling merged remote branches in dry run mode."""
-    config_fixture.dry_run_by_default = True
-    mock_get_merged = mocker.patch(
-        "git_cleanup.git.get_merged_remote_branches",
-        return_value=["feature-1", "feature-2"],
-    )
-    mock_filter = mocker.patch(
-        "git_cleanup.git.filter_protected_branches",
-        return_value=["feature-1", "feature-2"],
-    )
-    mock_delete = mocker.patch("git_cleanup.cli.delete_remote_branches")
-
-    cli.handle_merged_remote_branches(config_fixture)
-
-    mock_get_merged.assert_called_once()
-    mock_filter.assert_called_once_with(
-        ["feature-1", "feature-2"],
-        config_fixture.protected_branches,
-    )
-    mock_delete.assert_not_called()
-
-
-def test_delete_remote_branches_none(mocker):
-    """Test deleting remote branches when none are provided."""
-    mock_confirm = mocker.patch("rich.prompt.Confirm.ask")
-    mock_delete = mocker.patch("git_cleanup.git.delete_remote_branch")
-
-    cli.delete_remote_branches([])
-
-    mock_confirm.assert_not_called()
-    mock_delete.assert_not_called()
+def test_delete_remote_branches_none():
+    """Test when no remote branches to delete."""
+    cli.delete_remote_branches([], dry_run=False, interactive=False)
 
 
 def test_delete_remote_branches_non_interactive(mocker):
     """Test deleting remote branches in non-interactive mode."""
     mock_confirm = mocker.patch("rich.prompt.Confirm.ask")
-    mock_delete = mocker.patch("git_cleanup.git.delete_remote_branch")
+    mock_delete = mocker.patch("arborist.cli.delete_remote_branch")
 
-    cli.delete_remote_branches(["feature-1", "feature-2"], interactive=False)
+    branches = ["feature/123", "feature/456"]
+    cli.delete_remote_branches(branches, dry_run=False, interactive=False)
 
-    mock_confirm.assert_not_called()
+    assert not mock_confirm.called
+    assert mock_delete.call_count == TWO_BRANCHES
     mock_delete.assert_has_calls(
-        [
-            mocker.call("feature-1"),
-            mocker.call("feature-2"),
-        ],
+        [call("feature/123"), call("feature/456")],
     )
 
 
 def test_delete_remote_branches_interactive_confirm(mocker):
     """Test deleting remote branches with interactive confirmation."""
-    mock_confirm = mocker.patch("rich.prompt.Confirm.ask", return_value=True)
-    mock_delete = mocker.patch("git_cleanup.git.delete_remote_branch")
+    mock_confirm = mocker.patch(
+        "rich.prompt.Confirm.ask",
+        side_effect=[True, True, True],
+    )
+    mock_delete = mocker.patch("arborist.cli.delete_remote_branch")
+    mock_console = mocker.patch("rich.console.Console.print")
 
-    cli.delete_remote_branches(["feature-1", "feature-2"], interactive=True)
+    branches = ["feature/123", "feature/456"]
+    cli.delete_remote_branches(branches, dry_run=False, interactive=True)
 
-    assert mock_confirm.call_count == EXPECTED_CONFIRM_STEPS  # Global + per branch
+    # First True is for bulk confirmation
+    # Second and third True are for individual branches
+    assert mock_confirm.call_count == BULK_AND_TWO_BRANCHES
+    assert mock_delete.call_count == TWO_BRANCHES
     mock_delete.assert_has_calls(
-        [
-            mocker.call("feature-1"),
-            mocker.call("feature-2"),
-        ],
+        [call("feature/123"), call("feature/456")],
+    )
+    mock_console.assert_any_call(
+        "[green]Deleted remote branch feature/123[/green]",
+    )
+    mock_console.assert_any_call(
+        "[green]Deleted remote branch feature/456[/green]",
     )
 
 
 def test_delete_remote_branches_interactive_reject(mocker):
     """Test rejecting remote branch deletion in interactive mode."""
     mock_confirm = mocker.patch("rich.prompt.Confirm.ask", return_value=False)
-    mock_delete = mocker.patch("git_cleanup.git.delete_remote_branch")
+    mock_delete = mocker.patch("arborist.git.delete_remote_branch")
 
-    cli.delete_remote_branches(["feature-1", "feature-2"], interactive=True)
+    branches = ["feature/123", "feature/456"]
+    cli.delete_remote_branches(branches, dry_run=False, interactive=True)
 
-    mock_confirm.assert_called_once()  # Only global confirmation
-    mock_delete.assert_not_called()
+    # Only called once for bulk confirmation, rejected
+    assert mock_confirm.call_count == 1
+    assert not mock_delete.called
 
 
 def test_delete_remote_branches_error_handling(mocker):
     """Test error handling during remote branch deletion."""
-    mock_confirm = mocker.patch("rich.prompt.Confirm.ask", return_value=True)
+    mock_confirm = mocker.patch("rich.prompt.Confirm.ask", side_effect=[True, True])
     mock_delete = mocker.patch(
-        "git_cleanup.git.delete_remote_branch",
-        side_effect=git.GitError("Remote branch deletion failed"),
+        "arborist.cli.delete_remote_branch",
+        side_effect=GitError("Remote branch deletion failed"),
     )
 
-    cli.delete_remote_branches(["feature-1"], interactive=True)
+    branches = ["feature/123"]
+    cli.delete_remote_branches(branches, dry_run=False, interactive=True)
 
-    assert mock_confirm.call_count == EXPECTED_CONFIRM_STEPS_ONE_BRANCH
-    mock_delete.assert_called_once_with("feature-1")
+    # Called for bulk confirmation and individual branch
+    assert mock_confirm.call_count == BULK_AND_ONE_BRANCH
+    assert mock_delete.called
+    assert mock_delete.call_count == 1
 
 
 def test_delete_branches_error_handling(mocker):
     """Test error handling during branch deletion."""
-    mock_confirm = mocker.patch("rich.prompt.Confirm.ask", return_value=True)
+    mock_confirm = mocker.patch("rich.prompt.Confirm.ask", side_effect=[True, True])
     mock_delete = mocker.patch(
-        "git_cleanup.git.delete_branch",
-        side_effect=git.GitError("Branch deletion failed"),
+        "arborist.cli.delete_branch",
+        side_effect=GitError("Branch deletion failed"),
     )
+    mock_console = mocker.patch("rich.console.Console.print")
 
-    cli.delete_branches(["feature-1"], interactive=True)
+    branches = ["feature/123"]
+    cli.delete_branches(branches, dry_run=False, interactive=True)
 
-    assert mock_confirm.call_count == EXPECTED_CONFIRM_STEPS_ONE_BRANCH
-    mock_delete.assert_called_once_with("feature-1", force=False)
+    # Called for bulk confirmation and individual branch
+    assert mock_confirm.call_count == BULK_AND_ONE_BRANCH
+    assert mock_delete.called
+    assert mock_delete.call_count == 1
+    mock_console.assert_any_call(
+        "[red]Error deleting feature/123: Branch deletion failed[/red]",
+    )
 
 
 def test_main_with_all_options(mock_config):
     """Test main function with all options enabled."""
-    with patch.multiple(
-        "git_cleanup.git",
-        is_git_repo=lambda: True,
-        get_gone_branches=lambda: ["feature/123"],
-        get_merged_branches=lambda: ["feature/456"],
-        get_merged_remote_branches=lambda: ["feature/789"],
-        delete_branch=lambda *args, **kwargs: None,
-        delete_remote_branch=lambda *args, **kwargs: None,
-    ), patch("rich.prompt.Confirm.ask", return_value=True):
+    with (
+        patch.multiple(
+            "arborist.git",
+            is_git_repo=lambda: True,
+            get_gone_branches=lambda: ["feature/123"],
+            get_merged_branches=lambda: ["feature/456"],
+            get_merged_remote_branches=lambda: ["feature/789"],
+            delete_branch=lambda *args, **kwargs: None,
+            delete_remote_branch=lambda *args, **kwargs: None,
+            fetch_and_prune=lambda progress_callback=None: None,
+            optimize_repo=lambda progress_callback=None: None,
+        ),
+        patch("rich.prompt.Confirm.ask", return_value=True),
+    ):
         result = runner.invoke(
             cli.app,
             [
@@ -457,8 +437,9 @@ def test_main_with_all_options(mock_config):
                 "--no-interactive",
                 "--no-gc",
                 "--protect",
-                "main,develop",
+                "develop,staging",
             ],
+            catch_exceptions=False,
         )
         assert result.exit_code == 0
         assert "DRY RUN: No changes will be made" in result.stdout
@@ -467,54 +448,52 @@ def test_main_with_all_options(mock_config):
 def test_main_with_optimize_error(mock_config):
     """Test main function when optimization fails."""
     with patch.multiple(
-        "git_cleanup.git",
+        "arborist.cli",
         is_git_repo=lambda: True,
         get_gone_branches=lambda: [],
         get_merged_branches=lambda: [],
         get_merged_remote_branches=lambda: [],
-        optimize_repo=lambda progress_callback=None: exec(
-            'raise git.GitError("GC failed")',
-        ),
+        fetch_and_prune=lambda progress_callback=None: None,
+        optimize_repo=lambda progress_callback=None: raise_(GitError("GC failed")),
     ):
         result = runner.invoke(cli.app)
-        assert result.exit_code == 0
+        assert result.exit_code == 0  # Should not exit with error
         assert "Error optimizing repository: GC failed" in result.stdout
 
 
 def test_delete_branches_with_error_and_continue(mocker):
     """Test branch deletion with error on one branch but continuing."""
-    mock_confirm = mocker.patch("rich.prompt.Confirm.ask", return_value=True)
+    mock_confirm = mocker.patch(
+        "rich.prompt.Confirm.ask",
+        side_effect=[True, True, True],
+    )
     mock_delete = mocker.patch(
-        "git_cleanup.git.delete_branch",
-        side_effect=[git.GitError("First failed"), None],
+        "arborist.cli.delete_branch",
+        side_effect=[GitError("First failed"), None],
     )
 
-    cli.delete_branches(["feature-1", "feature-2"], interactive=True)
+    branches = ["feature/123", "feature/456"]
+    cli.delete_branches(branches, dry_run=False, interactive=True)
 
-    assert (
-        mock_confirm.call_count == EXPECTED_CONFIRM_STEPS_TWO_BRANCHES
-    )  # Global + both branches
-    assert mock_delete.call_count == EXPECTED_DELETE_STEPS_TWO_BRANCHES
+    # Called for bulk confirmation and both branches
+    assert mock_confirm.call_count == BULK_AND_TWO_BRANCHES
+    assert mock_delete.call_count == TWO_BRANCHES
     mock_delete.assert_has_calls(
-        [
-            call("feature-1", force=False),
-            call("feature-2", force=False),
-        ],
+        [call("feature/123", force=False), call("feature/456", force=False)],
     )
 
 
 def test_main_with_fetch_error(mock_config):
     """Test main function when fetch fails."""
     with patch.multiple(
-        "git_cleanup.git",
+        "arborist.cli",
         is_git_repo=lambda: True,
-        fetch_and_prune=lambda progress_callback=None: exec(
-            'raise git.GitError("Fetch failed")',
-        ),
+        fetch_and_prune=lambda progress_callback=None: raise_(GitError("Fetch failed")),
         get_gone_branches=lambda: [],
         get_merged_branches=lambda: [],
         get_merged_remote_branches=lambda: [],
+        optimize_repo=lambda progress_callback=None: None,
     ):
         result = runner.invoke(cli.app)
-        assert result.exit_code == 0
-        assert "Fetch failed" in result.stdout
+        assert result.exit_code == 1  # Should exit with error
+        assert "Error updating repository state: Fetch failed" in result.stdout

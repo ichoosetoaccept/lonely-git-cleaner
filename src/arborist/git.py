@@ -93,10 +93,12 @@ def delete_branch(branch: str, force: bool = False) -> None:
 def optimize_repo(progress_callback: Callable[[str], None] | None = None) -> None:
     """Run git gc and prune operations."""
     # Remove any existing gc.log
-    try:
-        Path(".git/gc.log").unlink(missing_ok=True)
-    except OSError:
-        pass
+    gc_log = Path(".git/gc.log")
+    if gc_log.exists():
+        try:
+            gc_log.unlink()
+        except OSError:
+            pass  # Ignore errors when removing gc.log
 
     # Run prune
     if progress_callback:

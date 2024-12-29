@@ -1,10 +1,15 @@
-"""Tests for git module."""
+"""Test git functionality."""
 
 import subprocess
+from pathlib import Path
 from unittest.mock import patch
 
 import pytest
-from git_cleanup import git
+from arborist import git
+from arborist.git import GitError
+
+# Constants for test cases
+EXPECTED_GIT_COMMANDS = 2  # Number of git commands expected in optimize_repo
 
 
 @pytest.fixture
@@ -134,12 +139,15 @@ def test_delete_branch_with_special_chars(mock_run):
     )
 
 
-EXPECTED_GIT_COMMANDS = 2  # prune and gc commands
-
-
 def test_optimize_repo(mock_run):
     """Test repository optimization."""
-    with patch("pathlib.Path.unlink") as mock_unlink:
+    Path(".git/gc.log")
+    with (
+        patch("pathlib.Path.exists", return_value=True),
+        patch(
+            "pathlib.Path.unlink",
+        ) as mock_unlink,
+    ):
         git.optimize_repo()
 
         # Should try to remove gc.log
@@ -206,7 +214,7 @@ def test_get_merged_remote_branches(mocker):
     """Test getting merged remote branches."""
     # Mock the current branch
     mocker.patch(
-        "git_cleanup.git.run_git_command",
+        "arborist.git.run_git_command",
         side_effect=[
             ("main", ""),  # Current branch
             (
@@ -229,7 +237,7 @@ def test_get_merged_remote_branches(mocker):
 def test_get_merged_remote_branches_empty(mocker):
     """Test getting merged remote branches when none exist."""
     mocker.patch(
-        "git_cleanup.git.run_git_command",
+        "arborist.git.run_git_command",
         side_effect=[
             ("main", ""),  # Current branch
             ("", ""),  # No remote branches
@@ -243,7 +251,7 @@ def test_get_merged_remote_branches_empty(mocker):
 def test_get_merged_remote_branches_with_current(mocker):
     """Test getting merged remote branches with current branch remote."""
     mocker.patch(
-        "git_cleanup.git.run_git_command",
+        "arborist.git.run_git_command",
         side_effect=[
             ("feature-1", ""),  # Current branch
             (
@@ -261,7 +269,7 @@ def test_get_merged_remote_branches_with_current(mocker):
 
 def test_delete_remote_branch(mocker):
     """Test deleting a remote branch."""
-    mock_run = mocker.patch("git_cleanup.git.run_git_command")
+    mock_run = mocker.patch("arborist.git.run_git_command")
     git.delete_remote_branch("feature-1")
     mock_run.assert_called_once_with(["push", "origin", "--delete", "feature-1"])
 
@@ -269,11 +277,11 @@ def test_delete_remote_branch(mocker):
 def test_delete_remote_branch_error(mocker):
     """Test error handling when deleting a remote branch."""
     mocker.patch(
-        "git_cleanup.git.run_git_command",
-        side_effect=git.GitError("Remote branch deletion failed"),
+        "arborist.git.run_git_command",
+        side_effect=GitError("Remote branch deletion failed"),
     )
 
-    with pytest.raises(git.GitError, match="Remote branch deletion failed"):
+    with pytest.raises(GitError, match="Remote branch deletion failed"):
         git.delete_remote_branch("feature-1")
 
 

@@ -1,0 +1,69 @@
+name: Version Management
+
+on:
+  pull_request:
+    types: [closed]
+    branches:
+      - main
+
+jobs:
+  version:
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    outputs:
+      new_version: ${{ steps.version.outputs.new_version }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get latest version
+        id: latest
+        run: |
+          latest_tag=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+          echo "latest_tag=${latest_tag}" >> $GITHUB_OUTPUT
+
+      - name: Determine version bump
+        id: version
+        run: |
+          # Initialize bump type as patch
+          bump_type="patch"
+
+          # Check PR labels
+          if [[ "${{ contains(github.event.pull_request.labels.*.name, 'breaking-change') }}" == "true" ]]; then
+            bump_type="major"
+          elif [[ "${{ contains(github.event.pull_request.labels.*.name, 'enhancement') || contains(github.event.pull_request.labels.*.name, 'feature') }}" == "true" ]]; then
+            bump_type="minor"
+          fi
+
+          # Get current version numbers
+          current_version=${latest_tag#v}
+          IFS='.' read -r major minor patch <<< "$current_version"
+
+          # Calculate new version
+          case $bump_type in
+            major)
+              new_version="$((major + 1)).0.0"
+              ;;
+            minor)
+              new_version="${major}.$((minor + 1)).0"
+              ;;
+            patch)
+              new_version="${major}.${minor}.$((patch + 1))"
+              ;;
+          esac
+
+          echo "new_version=v${new_version}" >> $GITHUB_OUTPUT
+          echo "Bump type: ${bump_type}"
+          echo "New version will be: v${new_version}"
+
+  create-tag:
+    needs: version
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Create and push tag
+        run: |
+          git tag ${{ needs.version.outputs.new_version }}
+          git push origin ${{ needs.version.outputs.new_version }}
