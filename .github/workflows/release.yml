@@ -36,6 +36,7 @@ jobs:
           uv pip install -e ".[dev]"
       - name: Run tests
         run: |
+          source .venv/bin/activate
           pytest tests/ -v --cov=src/arborist --cov-report=term-missing
 
   build:
