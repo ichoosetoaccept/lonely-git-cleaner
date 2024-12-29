@@ -48,8 +48,10 @@ def get_gone_branches() -> list[str]:
 
     for line in stdout.splitlines():
         if ": gone]" in line:
-            # Extract branch name from the line
+            # Extract branch name from the line, handling current branch marker
             branch = line.strip().split()[0]
+            if branch.startswith("*"):
+                branch = line.strip().split()[1]
             gone_branches.append(branch)
 
     return gone_branches
@@ -122,3 +124,49 @@ def fetch_and_prune(progress_callback: Callable[[str], None] | None = None) -> N
 def filter_protected_branches(branches: list[str], protected: list[str]) -> list[str]:
     """Filter out protected branches from the list."""
     return [b for b in branches if b not in protected]
+
+
+def get_merged_remote_branches() -> list[str]:
+    """Get list of merged remote branches.
+
+    Returns a list of remote branch names (without the remote prefix) that have been
+    merged into the current branch.
+    """
+    # Get the current branch
+    stdout, _ = run_git_command(["rev-parse", "--abbrev-ref", "HEAD"])
+    current_branch = stdout.strip()
+
+    # Get all remote branches
+    stdout, _ = run_git_command(["branch", "-r", "--merged"])
+    merged_remotes = []
+
+    for line in stdout.splitlines():
+        branch = line.strip()
+        if not branch:
+            continue
+
+        # Skip the current branch's remote tracking branch
+        if f"origin/{current_branch}" in branch:
+            continue
+
+        # Remove the 'origin/' prefix
+        if branch.startswith("origin/"):
+            branch = branch[len("origin/") :]
+            merged_remotes.append(branch)
+
+    return merged_remotes
+
+
+def delete_remote_branch(branch: str) -> None:
+    """Delete a remote git branch.
+
+    Args:
+    ----
+        branch: The name of the branch to delete (without remote prefix)
+
+    Raises:
+    ------
+        GitError: If the branch deletion fails
+
+    """
+    run_git_command(["push", "origin", "--delete", branch])

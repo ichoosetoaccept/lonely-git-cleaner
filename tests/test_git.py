@@ -134,6 +134,9 @@ def test_delete_branch_with_special_chars(mock_run):
     )
 
 
+EXPECTED_GIT_COMMANDS = 2  # prune and gc commands
+
+
 def test_optimize_repo(mock_run):
     """Test repository optimization."""
     with patch("pathlib.Path.unlink") as mock_unlink:
@@ -142,10 +145,29 @@ def test_optimize_repo(mock_run):
         # Should try to remove gc.log
         mock_unlink.assert_called_once()
 
-        # Define expected number of git commands (prune and gc)
-        expected_git_commands = 2
         # Should run git prune and gc
-        assert mock_run.call_count == expected_git_commands
+        assert mock_run.call_count == EXPECTED_GIT_COMMANDS
+        mock_run.assert_any_call(
+            ["git", "prune"],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        mock_run.assert_any_call(
+            ["git", "gc"],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+
+
+def test_optimize_repo_unlink_error(mock_run):
+    """Test repository optimization when gc.log unlink fails."""
+    with patch("pathlib.Path.unlink", side_effect=OSError("Permission denied")):
+        git.optimize_repo()  # Should handle the error gracefully
+
+        # Should still run git commands despite unlink error
+        assert mock_run.call_count == EXPECTED_GIT_COMMANDS
         mock_run.assert_any_call(
             ["git", "prune"],
             capture_output=True,
@@ -178,3 +200,91 @@ def test_filter_protected_branches():
 
     filtered = git.filter_protected_branches(branches, protected)
     assert filtered == ["develop", "feature/123"]
+
+
+def test_get_merged_remote_branches(mocker):
+    """Test getting merged remote branches."""
+    # Mock the current branch
+    mocker.patch(
+        "git_cleanup.git.run_git_command",
+        side_effect=[
+            ("main", ""),  # Current branch
+            (
+                "origin/feature-1\n" "origin/feature-2\n" "origin/main\n" "origin/dev",
+                "",
+            ),  # Remote branches
+        ],
+    )
+
+    result = git.get_merged_remote_branches()
+    assert result == ["feature-1", "feature-2", "dev"]
+    git.run_git_command.assert_has_calls(
+        [
+            mocker.call(["rev-parse", "--abbrev-ref", "HEAD"]),
+            mocker.call(["branch", "-r", "--merged"]),
+        ],
+    )
+
+
+def test_get_merged_remote_branches_empty(mocker):
+    """Test getting merged remote branches when none exist."""
+    mocker.patch(
+        "git_cleanup.git.run_git_command",
+        side_effect=[
+            ("main", ""),  # Current branch
+            ("", ""),  # No remote branches
+        ],
+    )
+
+    result = git.get_merged_remote_branches()
+    assert result == []
+
+
+def test_get_merged_remote_branches_with_current(mocker):
+    """Test getting merged remote branches with current branch remote."""
+    mocker.patch(
+        "git_cleanup.git.run_git_command",
+        side_effect=[
+            ("feature-1", ""),  # Current branch
+            (
+                "origin/feature-1\n"  # Should be skipped
+                "origin/feature-2\n"
+                "origin/main",
+                "",
+            ),
+        ],
+    )
+
+    result = git.get_merged_remote_branches()
+    assert result == ["feature-2", "main"]
+
+
+def test_delete_remote_branch(mocker):
+    """Test deleting a remote branch."""
+    mock_run = mocker.patch("git_cleanup.git.run_git_command")
+    git.delete_remote_branch("feature-1")
+    mock_run.assert_called_once_with(["push", "origin", "--delete", "feature-1"])
+
+
+def test_delete_remote_branch_error(mocker):
+    """Test error handling when deleting a remote branch."""
+    mocker.patch(
+        "git_cleanup.git.run_git_command",
+        side_effect=git.GitError("Remote branch deletion failed"),
+    )
+
+    with pytest.raises(git.GitError, match="Remote branch deletion failed"):
+        git.delete_remote_branch("feature-1")
+
+
+def test_get_gone_branches_complex_output(mock_run):
+    """Test detecting branches with gone remotes with complex output."""
+    mock_run.return_value.stdout = """
+  feature/123 abcd123 [origin/feature/123: gone] some extra info
+* current-branch def456 [origin/current-branch: gone] other info
+  develop    efgh456 [origin/develop]
+  main       ijkl789 [origin/main]
+  no-remote  mnop123
+"""
+    branches = git.get_gone_branches()
+    assert set(branches) == {"feature/123", "current-branch"}

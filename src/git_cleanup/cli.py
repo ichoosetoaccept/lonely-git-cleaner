@@ -63,6 +63,29 @@ def handle_merged_branches(cfg: config.Config) -> None:
         delete_branches(merged_branches, cfg.interactive)
 
 
+def handle_merged_remote_branches(cfg: config.Config) -> None:
+    """Handle merged remote branches."""
+    console.print("\n🌐 [blue]Checking for merged remote branches...[/blue]")
+    merged_remotes = git.get_merged_remote_branches()
+    merged_remotes = git.filter_protected_branches(
+        merged_remotes,
+        cfg.protected_branches,
+    )
+
+    if not merged_remotes:
+        console.print("[green]No merged remote branches found.[/green]")
+        return
+
+    console.print(
+        f"[yellow]Found {len(merged_remotes)} merged remote branches:[/yellow]",
+    )
+    for branch in merged_remotes:
+        console.print(f"[yellow]  {branch}[/yellow]")
+
+    if not cfg.dry_run_by_default:
+        delete_remote_branches(merged_remotes, cfg.interactive)
+
+
 def delete_branches(
     branches: list[str],
     interactive: bool = True,
@@ -100,6 +123,47 @@ def delete_branches(
             console.print(f"[green]Deleted branch {branch}[/green]")
         except git.GitError as e:
             console.print(f"[red]Error deleting {branch}: {e!s}[/red]")
+
+
+def delete_remote_branches(
+    branches: list[str],
+    interactive: bool = True,
+) -> None:
+    """Delete the given remote branches.
+
+    Args:
+    ----
+        branches: List of remote branch names to delete
+        interactive: Whether to ask for confirmation before deleting (defaults to True)
+
+    """
+    if not branches:
+        return
+
+    if interactive:
+        console.print(
+            "\n[yellow]The following remote branches will be deleted:[/yellow]",
+        )
+        for branch in branches:
+            console.print(f"  [yellow]{branch}[/yellow]")
+
+        prompt = (
+            "\n[yellow]Do you want to proceed with remote branch deletion?[/yellow]"
+        )
+        if not Confirm.ask(prompt, default=False):
+            console.print("[blue]Skipping remote branch deletion.[/blue]")
+            return
+
+    for branch in branches:
+        try:
+            if interactive:
+                if not Confirm.ask(f"Delete remote branch {branch}?", default=False):
+                    console.print(f"[blue]Skipping remote branch {branch}[/blue]")
+                    continue
+            git.delete_remote_branch(branch)
+            console.print(f"[green]Deleted remote branch {branch}[/green]")
+        except git.GitError as e:
+            console.print(f"[red]Error deleting remote {branch}: {e!s}[/red]")
 
 
 def optimize_repository(cfg: config.Config) -> None:
@@ -202,22 +266,29 @@ def main(
 
     # Update repository state
     if not cfg.dry_run_by_default:
-        with Progress(
-            SpinnerColumn(),
-            TextColumn("[blue]{task.description}[/blue]"),
-            console=console,
-        ) as progress:
-            task_id = progress.add_task("🔄 Updating repository state...", total=None)
-            git.fetch_and_prune(
-                progress_callback=lambda msg: progress.update(
-                    task_id,
-                    description=f"🔄 {msg}",
-                ),
-            )
+        try:
+            with Progress(
+                SpinnerColumn(),
+                TextColumn("[blue]{task.description}[/blue]"),
+                console=console,
+            ) as progress:
+                task_id = progress.add_task(
+                    "🔄 Updating repository state...",
+                    total=None,
+                )
+                git.fetch_and_prune(
+                    progress_callback=lambda msg: progress.update(
+                        task_id,
+                        description=f"🔄 {msg}",
+                    ),
+                )
+        except git.GitError as e:
+            console.print(f"[red]Error updating repository state: {e!s}[/red]")
 
     # Process branches
     handle_gone_branches(cfg)
     handle_merged_branches(cfg)
+    handle_merged_remote_branches(cfg)
 
     # Optimize repository
     optimize_repository(cfg)
