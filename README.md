@@ -1,11 +1,6 @@
-# git-cleanup 🧹
+# Arborist
 
-[![Tests](https://github.com/ichoosetoaccept/lonely-git-cleaner/actions/workflows/test.yml/badge.svg)](https://github.com/ichoosetoaccept/lonely-git-cleaner/actions/workflows/test.yml)
-[![codecov](https://codecov.io/gh/ichoosetoaccept/lonely-git-cleaner/branch/main/graph/badge.svg)](https://codecov.io/gh/ichoosetoaccept/lonely-git-cleaner)
-[![Python 3.12+](https://img.shields.io/badge/python-3.12%2B-blue.svg)](https://www.python.org/downloads/)
-
-A comprehensive Git repository cleanup tool that safely removes stale branches and optimizes repository
-performance.
+A CLI tool to clean up Git branches. Like a skilled arborist pruning trees, this tool helps you maintain a clean Git branch structure by removing merged and stale branches while protecting important ones.
 
 ## Features
 
@@ -23,11 +18,11 @@ performance.
 This installs the tool globally on your system, making it available in any terminal session:
 
 ```bash
-uv pip install git+https://github.com/yourusername/git-cleanup.git
+uv pip install git+https://github.com/ichoosetoaccept/arborist.git
 ```
 
 After installation:
-- The `git-cleanup` command will be available globally
+- The `arb` command will be available globally
 - No need to activate any virtual environment
 - Works in any terminal session or directory
 - Persists after terminal restarts
@@ -38,8 +33,8 @@ This sets up a development environment for contributing to the project:
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/git-cleanup.git
-cd git-cleanup
+git clone https://github.com/ichoosetoaccept/arborist.git
+cd arborist
 
 # Run the development setup script
 ./scripts/install-dev.sh
@@ -51,28 +46,31 @@ The install script will:
 3. Make the development version available globally
 
 After installation:
-- The `git-cleanup` command will be available globally
+- The `arb` command will be available globally
 - Changes you make to the code will be reflected immediately
 - Run tests with: `source .venv/bin/activate && pytest`
 - The virtual environment is only needed for running tests and development tools
 
-## Usage (when in a git repository)
+## Usage
 
 ```bash
-# Basic cleanup (will ask for confirmation)
-git-cleanup
+# Install the package
+uv pip install arborist
 
-# With dry run (shows what would be deleted without actually deleting)
-git-cleanup --dry-run
+# Show help
+arb --help
 
-# Non-interactive mode (no confirmation prompts)
-git-cleanup --no-interactive
+# Run in dry-run mode (no changes made)
+arb --dry-run
 
-# Skip garbage collection
-git-cleanup --no-gc
+# Run interactively (default)
+arb
 
-# Specify protected branches (default: main)
-git-cleanup --protect "main,develop,staging"
+# Run non-interactively
+arb --no-interactive
+
+# Skip repository optimization
+arb --skip-gc
 ```
 
 ## How It Works
@@ -105,7 +103,7 @@ git branch <branch-name> <SHA>
 
 ## Configuration
 
-You can configure default behavior by creating a `.git-cleanuprc` file in your home directory:
+You can configure default behavior by creating a `.arboristrc` file in your home directory:
 
 ```json
 {
@@ -149,6 +147,84 @@ Test coverage includes:
 ## Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
+
+### Pull Request Process
+
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Make your changes
+4. Ensure tests pass (`pytest`)
+5. Commit your changes using conventional commits
+6. Push to your fork
+7. Open a Pull Request
+
+### Commit Message Format
+
+We use [Conventional Commits](https://www.conventionalcommits.org/) format. Each commit message should follow this format:
+
+```
+<type>(<scope>): <description>
+
+[optional body]
+```
+
+Where:
+- `type` is one of:
+  - `feat`: A new feature
+  - `fix`: A bug fix
+  - `docs`: Documentation only changes
+  - `style`: Changes that don't affect the code's meaning
+  - `refactor`: Code changes that neither fix a bug nor add a feature
+  - `perf`: Performance improvements
+  - `test`: Adding or fixing tests
+  - `chore`: Changes to build process or auxiliary tools
+- `scope` is optional and indicates the area of change
+- `description` is a short description of the change
+
+Example:
+```
+feat(cli): add support for remote branch cleanup
+
+Add functionality to clean up merged remote branches.
+This helps keep the remote repository clean by removing
+branches that have been merged into the main branch.
+```
+
+### Release Process
+
+Releases are automated through GitHub Actions using semantic versioning rules. The version number is automatically determined based on the changes in each Pull Request:
+
+1. MAJOR version (X.0.0) is bumped when:
+   - PR has the `breaking-change` label
+   - Changes include backwards-incompatible updates
+
+2. MINOR version (0.X.0) is bumped when:
+   - PR has the `enhancement` or `feature` label
+   - New features are added in a backwards-compatible manner
+
+3. PATCH version (0.0.X) is bumped when:
+   - PR has `bug`, `bugfix`, or `fix` labels
+   - Backwards-compatible bug fixes are made
+   - Documentation or maintenance changes are made
+
+The release process is fully automated:
+
+1. Create a Pull Request with your changes
+2. Apply appropriate labels to your PR:
+   - `enhancement`, `feature`: For new features
+   - `bug`, `bugfix`, `fix`: For bug fixes
+   - `breaking-change`: For breaking changes
+   - `documentation`: For documentation updates
+   - `performance`: For performance improvements
+   - `maintenance`, `dependencies`: For maintenance work
+
+3. When your PR is merged to main:
+   - A new version number is automatically determined
+   - A new tag is created and pushed
+   - The release workflow creates a GitHub release
+   - Release notes are automatically generated based on PR labels
+
+The release notes will be automatically organized into categories based on the labels used in Pull Requests.
 
 ## License
 

@@ -2,10 +2,10 @@
 
 ## Project Structure
 
-- Use src/git_cleanup/ for main package code
+- Use src/arborist/ for main package code
 - Keep tests/ directory for pytest files
 - Use pyproject.toml for project metadata and dependencies
-- Config file should be in user's home directory as .git-cleanuprc
+- Config file should be in user's home directory as .arboristrc
 
 ## Git Branching
 
@@ -42,14 +42,13 @@
 ## Testing
 
 - Write pytest tests for all functionality
-- Use pytest-mock for mocking git commands
+- Use real Git repositories for testing
 - Test all CLI options and flags
 - Test config file handling
 - Test error cases
 - Maintain test coverage reporting with pytest-cov
 - Configure coverage exclusions in pyproject.toml
 - Test progress bars and callbacks:
-  - Mock progress callbacks in fixtures
   - Verify callback messages and formatting
   - Test progress bar integration with rich
 - Virtual Environment Setup:
@@ -88,7 +87,7 @@
 
 ## Configuration
 
-- Config file in JSON format (.git-cleanuprc)
+- Config file in JSON format (.arboristrc)
 - Support for:
   - Protected branches list (defaults to ["main"])
   - Default dry run setting
@@ -114,7 +113,7 @@
 
 - Use pre-commit hooks for:
   - Ruff linting and formatting
-  - Type checking with mypy
+  - Type checking
   - Other code quality checks
 - Configure all tools in pyproject.toml
 - Run tools before commits
