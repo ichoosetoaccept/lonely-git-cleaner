@@ -7,14 +7,18 @@ set -e
 echo "🔧 Creating virtual environment..."
 uv venv .venv
 
+# Activate virtual environment
+source .venv/bin/activate
+
 # Install in development mode
 echo "🔧 Installing package in development mode..."
-source .venv/bin/activate
 uv pip install -e ".[dev]"
 
-# Install pre-commit hooks
-echo "🔧 Installing pre-commit hooks..."
-pre-commit install
+# Install pre-commit and its hooks
+echo "🔧 Setting up pre-commit hooks..."
+uv pip install pre-commit
+pre-commit install --install-hooks
+pre-commit install --hook-type commit-msg  # For gitlint
 
 echo "✅ Development environment setup complete!"
 echo "🔧 The arb command is now available globally"
