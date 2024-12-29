@@ -55,7 +55,7 @@ After installation:
 
 ```bash
 # Install the package
-pip install arborist
+uv pip install arborist
 
 # Show help
 arb --help
