@@ -9,6 +9,7 @@ This repository follows a strict branching strategy to maintain code quality and
 - `bugfix/*`: Bug fixes
 - `release/*`: Release preparation
 - `hotfix/*`: Emergency production fixes
+- `ci/*`: CI/CD and infrastructure changes
 
 ## Branch Protection
 
@@ -32,13 +33,17 @@ The `main` branch is protected with the following rules:
    - For non-critical bugs: `bugfix/bug-description`
    - For critical production bugs: `hotfix/bug-description`
 
-3. **Code Review**
+3. **Infrastructure Changes**
+   - For CI/CD changes: `ci/change-description`
+   - For release preparation: `release/version-number`
+
+4. **Code Review**
    - All changes require at least one approval
    - Address review comments
    - Status checks must pass
    - Branch must be up to date with `main`
 
-4. **Merging**
+5. **Merging**
    - Squash and merge to maintain clean history
    - Delete branch after merging
    - Keep commit messages clear and descriptive

@@ -1,48 +1,43 @@
-"""Configuration management for git branch cleanup."""
+"""Configuration handling for arborist."""
 
-import json
 from pathlib import Path
 
 from pydantic import BaseModel
 
 
+class ConfigError(Exception):
+    """Configuration error."""
+
+    pass
+
+
 class Config(BaseModel):
-    """Configuration for git branch cleanup."""
+    """Configuration for arborist."""
 
     protected_branches: list[str] = ["main"]
     dry_run_by_default: bool = False
-    interactive: bool = False
+    interactive: bool = True
     skip_gc: bool = False
     reflog_expiry: str = "90.days"
 
-    @staticmethod
-    def get_config_path() -> Path:
-        """Get the path to the configuration file."""
-        return Path.home() / ".git-cleanuprc"
-
-    @staticmethod
-    def save_config(config: "Config") -> None:
+    def save_config(self, path: Path | None = None) -> None:
         """Save configuration to file."""
-        config_path = Config.get_config_path()
-
+        if path is None:
+            path = Path.home() / ".arboristrc"
         try:
-            with open(config_path, "w", encoding="utf-8") as f:
-                json.dump(config.model_dump(), f, indent=2)
-        except OSError as e:
-            print(f"Error: Failed to save config file: {e!s}")
+            path.write_text(self.model_dump_json(indent=2))
+        except Exception as e:
+            raise ConfigError(f"Failed to save config: {e}") from e
 
 
-def load_config() -> Config:
-    """Load configuration from file or return defaults."""
-    config_path = Config.get_config_path()
-
+def load_config(path: str | None = None) -> Config:
+    """Load configuration from file."""
+    if path is None:
+        path = str(Path.home() / ".arboristrc")
     try:
+        config_path = Path(path)
         if config_path.exists():
-            with open(config_path, encoding="utf-8") as f:
-                user_config = json.load(f)
-                return Config(**user_config)
-    except (json.JSONDecodeError, OSError) as e:
-        # Log error but continue with defaults
-        print(f"Warning: Error loading config file, using defaults ({e!s})")
-
-    return Config()
+            return Config.model_validate_json(config_path.read_text())
+        return Config()
+    except Exception as e:
+        raise ConfigError(f"Failed to load config: {e}") from e

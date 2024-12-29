@@ -7,8 +7,9 @@ on:
   create:
 
 permissions:
-  contents: read
-  administration: write
+  contents: write
+  pull-requests: write
+  actions: write
 
 jobs:
   protection:

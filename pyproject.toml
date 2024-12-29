@@ -1,70 +1,51 @@
 [project]
 name = "arborist"
-version = "0.0.1"
-description = "A CLI tool to clean up git branches"
-authors = [{ name = "Ismar Iljazovic" }]
+version = "0.1.0"
+description = "Clean up git branches that are gone or merged"
+authors = [
+    { name = "Ismar Slomic", email = "ismar@slomic.no" }
+]
 dependencies = [
     "typer>=0.9.0",
     "rich>=13.7.0",
-    "pydantic>=2.5.2"
+    "pydantic>=2.6.1",
 ]
 requires-python = ">=3.12"
+readme = "README.md"
+license = { text = "MIT" }
 
 [project.optional-dependencies]
 dev = [
     "pytest>=8.0.0",
     "pytest-cov>=4.1.0",
-    "pytest-mock>=3.12.0",
-    "ruff>=0.2.0",
-    "pre-commit>=4.0.0",
-    "mypy>=1.8.0"
+    "ruff>=0.2.1",
 ]
 
-[project.scripts]
-arb = "arborist.cli:app"
-
-[tool.pytest.ini_options]
-testpaths = ["tests"]
-python_files = ["test_*.py"]
-addopts = "-v --cov=arborist"
-
-[tool.coverage.run]
-source = ["arborist"]
-branch = true
-
-[tool.coverage.report]
-exclude_lines = [
-    "pragma: no cover",
-    "def __repr__",
-    "if __name__ == .__main__.:",
-    "raise NotImplementedError",
-    "if TYPE_CHECKING:",
-]
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
 
 [tool.ruff]
 line-length = 88
 target-version = "py312"
 
 [tool.ruff.lint]
-extend-select = [
-    "B",  # flake8-bugbear
-    "C",  # flake8-comprehensions
-    "I",  # isort
-    "N",  # pep8-naming
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes
+    "I",   # isort
+    "B",   # flake8-bugbear
+    "C",   # flake8-comprehensions
     "UP",  # pyupgrade
-    "RUF",  # ruff-specific rules
-    "D",  # pydocstyle
+    "RUF", # ruff-specific rules
     "PL",  # pylint
+    "N",   # pep8-naming
+    "D",   # pydocstyle
+    "COM", # flake8-commas
 ]
-ignore = [
-    "D211",  # no-blank-line-before-class (conflicts with D203)
-    "D213",  # multi-line-summary-second-line (conflicts with D212)
-    "COM812",  # missing-trailing-comma (conflicts with formatter)
-    "D203",  # one-blank-line-before-class (conflicts with formatter)
-]
+ignore = ["COM812"]  # Ignore trailing comma rule that conflicts with formatter
 
-[tool.ruff.format]
-quote-style = "double"
-indent-style = "space"
-skip-magic-trailing-comma = false
-line-ending = "auto"
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "--cov=src --cov-report=term-missing"

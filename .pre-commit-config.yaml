@@ -35,7 +35,7 @@ repos:
 
       - id: branch-name
         name: Check branch naming convention
-        entry: python -c 'import sys, re, subprocess; branch = subprocess.check_output(["git", "rev-parse", "--abbrev-ref", "HEAD"]).decode().strip(); patterns = ["^feature/", "^bugfix/", "^hotfix/", "^release/", "^main$"]; sys.exit(1) if not any(re.match(p, branch) for p in patterns) else print(f"Branch name {branch} follows convention")'
+        entry: python -c 'import sys, re, subprocess; branch = subprocess.check_output(["git", "rev-parse", "--abbrev-ref", "HEAD"]).decode().strip(); patterns = ["^feature/", "^bugfix/", "^hotfix/", "^release/", "^ci/", "^main$"]; sys.exit(1) if not any(re.match(p, branch) for p in patterns) else print(f"Branch name {branch} follows convention")'
         language: system
         pass_filenames: false
         always_run: true

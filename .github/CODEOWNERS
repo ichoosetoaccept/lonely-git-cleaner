@@ -1,10 +1,11 @@
 # These owners will be the default owners for everything in
-# the repo. They will be requested for review when someone
-# opens a pull request.
+# the repo. Unless a later match takes precedence,
+# @global-owner1 and @global-owner2 will be requested for
+# review when someone opens a pull request.
 *       @ismar-iljazovic
+/src/arborist/       @ismar-iljazovic
 
 # Protect core application code
-/src/git_cleanup/       @ismar-iljazovic
 /tests/                 @ismar-iljazovic
 
 # Protect CI/CD and GitHub configurations

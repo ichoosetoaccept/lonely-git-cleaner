@@ -1,10 +1,15 @@
-"""Test configuration functionality."""
+"""Tests for configuration handling."""
 
 import json
-from pathlib import Path
-from unittest.mock import mock_open, patch
 
-from arborist.config import Config, load_config
+import pytest
+from arborist.config import Config, ConfigError, load_config
+
+
+@pytest.fixture
+def config_dir(tmp_path):
+    """Create a temporary directory for config files."""
+    return tmp_path
 
 
 def test_config_defaults():
@@ -12,106 +17,73 @@ def test_config_defaults():
     config = Config()
     assert config.protected_branches == ["main"]
     assert not config.dry_run_by_default
-    assert not config.interactive
+    assert config.interactive
     assert not config.skip_gc
     assert config.reflog_expiry == "90.days"
 
 
-def test_get_config_path():
-    """Test getting config file path."""
-    with patch("pathlib.Path.home") as mock_home:
-        mock_home.return_value = Path("/home/user")
-        path = Config.get_config_path()
-        assert path == Path("/home/user/.git-cleanuprc")
-
-
 def test_load_config_no_file():
     """Test loading config when file doesn't exist."""
-    with patch("pathlib.Path.exists", return_value=False):
-        config = load_config()
-        assert isinstance(config, Config)
-        assert config.protected_branches == ["main"]
+    config = load_config("/nonexistent/path")
+    assert isinstance(config, Config)
+    assert config.protected_branches == ["main"]
 
 
-def test_load_config_with_file():
+def test_load_config_with_file(config_dir):
     """Test loading config from file."""
-    config_data = {
+    config_path = config_dir / ".arboristrc"
+    test_config = {
         "protected_branches": ["main", "develop"],
         "dry_run_by_default": True,
-        "interactive": True,
+        "interactive": False,
         "skip_gc": True,
         "reflog_expiry": "30.days",
     }
-    mock_file = mock_open(read_data=json.dumps(config_data))
+    config_path.write_text(json.dumps(test_config))
 
-    with (
-        patch("pathlib.Path.exists", return_value=True),
-        patch(
-            "builtins.open",
-            mock_file,
-        ),
-    ):
-        config = load_config()
-        assert config.protected_branches == ["main", "develop"]
-        assert config.dry_run_by_default
-        assert config.interactive
-        assert config.skip_gc
-        assert config.reflog_expiry == "30.days"
+    config = load_config(str(config_path))
+    assert config.protected_branches == ["main", "develop"]
+    assert config.dry_run_by_default
+    assert not config.interactive
+    assert config.skip_gc
+    assert config.reflog_expiry == "30.days"
 
 
-def test_load_config_invalid_json():
+def test_load_config_invalid_json(config_dir):
     """Test loading config with invalid JSON."""
-    mock_file = mock_open(read_data="invalid json")
+    config_path = config_dir / ".arboristrc"
+    config_path.write_text("invalid json")
 
-    with (
-        patch("pathlib.Path.exists", return_value=True),
-        patch(
-            "builtins.open",
-            mock_file,
-        ),
-    ):
-        config = load_config()
-        assert isinstance(config, Config)
-        assert config.protected_branches == ["main"]
+    with pytest.raises(ConfigError):
+        load_config(str(config_path))
 
 
-def test_save_config():
-    """Test saving configuration to file."""
+def test_save_config(config_dir):
+    """Test saving config to file."""
     config = Config(
         protected_branches=["main", "develop"],
         dry_run_by_default=True,
-        interactive=True,
+        interactive=False,
         skip_gc=True,
         reflog_expiry="30.days",
     )
-    mock_file = mock_open()
+    config_path = config_dir / ".arboristrc"
+    config.save_config(config_path)
 
-    with patch("builtins.open", mock_file):
-        Config.save_config(config)
-
-    mock_file.assert_called_once()
-    handle = mock_file()
-    # Convert config to dict and compare with expected values
-    expected_data = {
-        "protected_branches": ["main", "develop"],
-        "dry_run_by_default": True,
-        "interactive": True,
-        "skip_gc": True,
-        "reflog_expiry": "30.days",
-    }
-    # Combine all write calls into a single string
-    written_data = ""
-    for call_args in handle.write.call_args_list:
-        written_data += call_args[0][0]
-    assert json.loads(written_data) == expected_data
+    # Load and verify
+    loaded_config = load_config(str(config_path))
+    assert loaded_config.protected_branches == ["main", "develop"]
+    assert loaded_config.dry_run_by_default
+    assert not loaded_config.interactive
+    assert loaded_config.skip_gc
+    assert loaded_config.reflog_expiry == "30.days"
 
 
-def test_save_config_error():
+def test_save_config_error(config_dir):
     """Test error handling when saving config."""
     config = Config()
-    mock_file = mock_open()
-    mock_file.side_effect = OSError("Permission denied")
+    config_path = config_dir / ".arboristrc"
+    config_path.mkdir()  # Create a directory instead of a file
 
-    with patch("builtins.open", mock_file):
-        # Should not raise exception
-        Config.save_config(config)
+    with pytest.raises(ConfigError):
+        config.save_config(config_path)

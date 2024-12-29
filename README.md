@@ -18,11 +18,11 @@ A CLI tool to clean up Git branches. Like a skilled arborist pruning trees, this
 This installs the tool globally on your system, making it available in any terminal session:
 
 ```bash
-uv pip install git+https://github.com/yourusername/git-cleanup.git
+uv pip install git+https://github.com/yourusername/arborist.git
 ```
 
 After installation:
-- The `git-cleanup` command will be available globally
+- The `arb` command will be available globally
 - No need to activate any virtual environment
 - Works in any terminal session or directory
 - Persists after terminal restarts
@@ -33,8 +33,8 @@ This sets up a development environment for contributing to the project:
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/git-cleanup.git
-cd git-cleanup
+git clone https://github.com/yourusername/arborist.git
+cd arborist
 
 # Run the development setup script
 ./scripts/install-dev.sh
@@ -46,7 +46,7 @@ The install script will:
 3. Make the development version available globally
 
 After installation:
-- The `git-cleanup` command will be available globally
+- The `arb` command will be available globally
 - Changes you make to the code will be reflected immediately
 - Run tests with: `source .venv/bin/activate && pytest`
 - The virtual environment is only needed for running tests and development tools
@@ -103,7 +103,7 @@ git branch <branch-name> <SHA>
 
 ## Configuration
 
-You can configure default behavior by creating a `.git-cleanuprc` file in your home directory:
+You can configure default behavior by creating a `.arboristrc` file in your home directory:
 
 ```json
 {
