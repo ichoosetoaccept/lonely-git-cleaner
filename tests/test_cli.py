@@ -1,9 +1,9 @@
 """Tests for command-line interface."""
 
 import pytest
-from arborist.cli import app
 from typer.testing import CliRunner
 
+from arborist.cli import app
 from tests.git_test_env import GitHubTestEnvironment
 
 

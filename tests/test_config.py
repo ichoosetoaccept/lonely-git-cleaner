@@ -3,6 +3,7 @@
 import json
 
 import pytest
+
 from arborist.config import Config, ConfigError, load_config
 
 

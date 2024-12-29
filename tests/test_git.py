@@ -3,8 +3,8 @@
 import os
 
 import pytest
-from arborist import git
 
+from arborist import git
 from tests.git_test_env import GitHubTestEnvironment
 
 
