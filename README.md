@@ -18,7 +18,7 @@ A CLI tool to clean up Git branches. Like a skilled arborist pruning trees, this
 This installs the tool globally on your system, making it available in any terminal session:
 
 ```bash
-uv pip install git+https://github.com/yourusername/arborist.git
+uv pip install git+https://github.com/ichoosetoaccept/arborist.git
 ```
 
 After installation:
@@ -33,7 +33,7 @@ This sets up a development environment for contributing to the project:
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/arborist.git
+git clone https://github.com/ichoosetoaccept/arborist.git
 cd arborist
 
 # Run the development setup script
