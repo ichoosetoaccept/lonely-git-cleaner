@@ -1,0 +1,12 @@
+# These owners will be the default owners for everything in
+# the repo. They will be requested for review when someone
+# opens a pull request.
+*       @ismar-iljazovic
+
+# Protect core application code
+/src/git_cleanup/       @ismar-iljazovic
+/tests/                 @ismar-iljazovic
+
+# Protect CI/CD and GitHub configurations
+/.github/              @ismar-iljazovic
+/pyproject.toml        @ismar-iljazovic
