@@ -48,4 +48,21 @@ ignore = ["COM812"]  # Ignore trailing comma rule that conflicts with formatter
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-addopts = "--cov=src --cov-report=term-missing"
+addopts = "--cov=src --cov-report=term-missing --cov-fail-under=85"
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "if self.debug:",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "pass",
+    "raise ImportError",
+]
+fail_under = 85
+show_missing = true
+
+[tool.coverage.run]
+branch = true
+source = ["src"]
