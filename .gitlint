@@ -9,13 +9,16 @@ line-length=72
 min-length=10
 
 [title-match-regex]
+# Conventional commits format with optional scope
+# feat|fix trigger version bumps, others are auxiliary
 regex=^(feat|fix|docs|style|refactor|perf|test|chore|ci|build|revert)(\([a-z0-9-]+\))?: .*$
 
 [body-max-line-length]
 line-length=72
 
 [ignore-by-title]
-regex=^Merge branch.*
+regex=^(Merge pull request|Merge branch).*
 
-[trailer-exists]
-trailers=Changelog
+[ignore-by-body]
+# Ignore automated release commits
+regex=^Release v[0-9]+\.[0-9]+\.[0-9]+.*
