@@ -1,233 +1,340 @@
-"""Test git functionality."""
+"""Test git operations."""
 
-import os
+from collections.abc import Generator
+from pathlib import Path
 
 import pytest
+from git import Repo
+from git.exc import GitCommandError
 
-from arborist import git
-from tests.git_test_env import GitHubTestEnvironment
+from arborist.exceptions import GitError
+from arborist.git.repo import BranchStatus, GitRepo
+from tests.git_test_env import GitTestEnv, create_file_in_repo
 
 
-@pytest.fixture
-def git_env():
-    """Create a Git test environment."""
-    env = GitHubTestEnvironment()
-    env.setup()
+@pytest.fixture(scope="function")
+def git_test_env(tmp_path: Path) -> Generator[GitTestEnv, None, None]:
+    """Create a test git environment."""
+    env = GitTestEnv(tmp_path)
     yield env
     env.cleanup()
 
 
-def test_run_git_command(git_env):
-    """Test running git commands."""
-    os.chdir(git_env.repo_dir)  # Ensure we're in the test repo
-    stdout, stderr = git.run_git_command(["status"])
-    assert "On branch main" in stdout
-    assert not stderr
+def test_create_branch_from_head(git_test_env: GitTestEnv) -> None:
+    """Test that we can create a branch from HEAD."""
+    git_test_env.repo.create_branch("test_branch")
+    assert "test_branch" in git_test_env.repo.repo.heads
 
 
-def test_run_git_command_error(git_env, tmp_path):
-    """Test handling git command errors."""
-    os.chdir(tmp_path)  # Move to non-git directory
-    with pytest.raises(git.GitError, match="not a git repository"):
-        git.run_git_command(["status"])
+def test_create_branch_from_non_head(git_test_env: GitTestEnv) -> None:
+    """Test that we can create a branch from a non-HEAD commit."""
+    # Create a commit on the main branch
+    create_file_in_repo(git_test_env.repo_dir, "file1.txt", "content1")
+    git_test_env.repo.repo.index.add(["file1.txt"])
+    main_commit = git_test_env.repo.repo.index.commit("Initial commit")
+
+    # Create a new branch from the initial commit
+    git_test_env.repo.create_branch("test_branch", main_commit.hexsha)
+    assert "test_branch" in git_test_env.repo.repo.heads
+
+    # Switch to the new branch and verify its start point
+    git_test_env.repo.repo.heads["test_branch"].checkout()
+    assert git_test_env.repo.repo.head.commit == main_commit
 
 
-def test_run_git_command_silent_error(git_env, tmp_path):
-    """Test silent error handling."""
-    os.chdir(tmp_path)  # Move to non-git directory
-    stdout, stderr = git.run_git_command(["status"], silent=True)
-    assert stdout == ""
-    assert "not a git repository" in stderr
+def test_create_branch_invalid_start_point(git_test_env: GitTestEnv) -> None:
+    """Test creating a branch from an invalid start point."""
+    with pytest.raises(GitError, match="Failed to create branch"):
+        git_test_env.repo.create_branch("test_branch", "nonexistent")
 
 
-def test_is_git_repo(git_env):
-    """Test git repository detection."""
-    os.chdir(git_env.repo_dir)
-    assert git.is_git_repo()
+def test_get_branch_status(git_test_env: GitTestEnv) -> None:
+    """Test getting branch status."""
+    # Create a branch and commit
+    git_test_env.create_branch("feature")
+    git_test_env.create_commit()
+    git_test_env.push_branch("feature")
+
+    # Create a repo object
+    repo = GitRepo(git_test_env.clone_dir)
+
+    # Check branch status
+    status = repo.get_branch_status()
+    assert "feature" in status
+    assert status["feature"] == BranchStatus.UNMERGED
+
+    # Merge the branch
+    git_test_env.merge_branch("feature", "main")
+    status = repo.get_branch_status()
+    assert status["feature"] == BranchStatus.MERGED
+
+    # Delete remote branch
+    git_test_env.delete_remote_branch("feature")
+    status = repo.get_branch_status()
+    assert status["feature"] == BranchStatus.GONE
 
 
-def test_is_not_git_repo(tmp_path):
-    """Test non-git repository detection."""
-    os.chdir(tmp_path)
-    assert not git.is_git_repo()
+def test_get_branch_status_with_no_remote(git_test_env: GitTestEnv) -> None:
+    """Test getting branch status when there's no remote."""
+    # Create a branch without pushing
+    git_test_env.create_branch("feature")
+    git_test_env.create_commit()
+
+    # Create a repo object
+    repo = GitRepo(git_test_env.clone_dir)
+
+    # Check branch status
+    status = repo.get_branch_status()
+    assert "feature" in status
+    assert status["feature"] == BranchStatus.UNMERGED
 
 
-def test_get_gone_branches(git_env):
-    """Test detecting branches with gone remotes."""
-    os.chdir(git_env.repo_dir)
+def test_get_branch_status_with_invalid_remote(git_test_env: GitTestEnv) -> None:
+    """Test getting branch status with an invalid remote."""
+    # Create a branch and push it
+    git_test_env.create_branch("feature")
+    git_test_env.create_commit()
+    git_test_env.push_branch("feature")
 
-    # Create and push a feature branch
-    git_env.create_branch("feature/123", "Feature 123")
-    git_env.push_branch("feature/123")
+    # Create a repo object
+    repo = GitRepo(git_test_env.clone_dir)
 
-    # Delete the remote branch
-    git_env.delete_remote_branch("feature/123")
+    # Corrupt the remote URL
+    repo.repo.git.remote("set-url", "origin", "/nonexistent/path")
 
-    # Check for gone branches
-    branches = git.get_gone_branches()
-    assert branches == ["feature/123"]
-
-
-def test_get_merged_branches(git_env):
-    """Test detecting merged branches."""
-    os.chdir(git_env.repo_dir)
-
-    # Create and merge feature branches
-    git_env.create_branch("feature/456", "Feature 456")
-    git_env.create_branch("hotfix/789", "Hotfix 789")
-    git_env.merge_branch("feature/456")
-    git_env.merge_branch("hotfix/789")
-
-    branches = git.get_merged_branches()
-    assert set(branches) == {"feature/456", "hotfix/789"}
+    # Check branch status
+    status = repo.get_branch_status()
+    assert "feature" in status
+    assert status["feature"] == BranchStatus.UNKNOWN
 
 
-def test_delete_branch(git_env):
-    """Test branch deletion."""
-    os.chdir(git_env.repo_dir)
+def test_get_merged_branches(git_test_env: GitTestEnv) -> None:
+    """Test getting merged branches."""
+    # Create and merge a branch
+    git_test_env.create_branch("feature")
+    git_test_env.create_commit()
+    git_test_env.merge_branch("feature", "main")
 
-    # Create a branch
-    git_env.create_branch("feature/123", "Feature 123")
+    # Create a repo object
+    repo = GitRepo(git_test_env.clone_dir)
 
-    # Delete it
-    git.delete_branch("feature/123")
-
-    # Verify it's gone
-    assert "feature/123" not in git_env.get_branches()
-
-
-def test_delete_branch_force(git_env):
-    """Test forced branch deletion."""
-    os.chdir(git_env.repo_dir)
-
-    # Create a branch with unmerged changes
-    git_env.create_branch("feature/123", "Feature 123")
-    git_env.commit_file("test.txt", "test content", branch="feature/123")
-
-    # Delete it with force
-    git.delete_branch("feature/123", force=True)
-
-    # Verify it's gone
-    assert "feature/123" not in git_env.get_branches()
+    # Check merged branches
+    merged = repo.get_merged_branches()
+    assert "feature" in merged
 
 
-def test_delete_branch_with_special_chars(git_env):
-    """Test branch deletion with special characters."""
-    os.chdir(git_env.repo_dir)
+def test_get_merged_branches_with_multiple_targets(git_test_env: GitTestEnv) -> None:
+    """Test getting merged branches with multiple target branches."""
+    # Create develop branch
+    git_test_env.create_branch("develop")
+    git_test_env.create_commit()
 
-    # Create a branch with special characters
-    git_env.create_branch("feature-123#test", "Feature with special chars")
+    # Create and merge a feature branch into develop
+    git_test_env.create_branch("feature")
+    git_test_env.create_commit()
+    git_test_env.merge_branch("feature", "develop")
 
-    # Delete it
-    git.delete_branch("feature-123#test")
+    # Create a repo object
+    repo = GitRepo(git_test_env.clone_dir)
 
-    # Verify it's gone
-    assert "feature-123#test" not in git_env.get_branches()
-
-
-def test_optimize_repo(git_env):
-    """Test repository optimization."""
-    os.chdir(git_env.repo_dir)
-
-    # Create and delete some branches to generate garbage
-    git_env.create_branch("feature/1", "Feature 1")
-    git_env.create_branch("feature/2", "Feature 2")
-    git_env.delete_remote_branch("feature/1")
-    git_env.delete_remote_branch("feature/2")
-
-    # Run optimization
-    git.optimize_repo()
+    # Check merged branches
+    merged = repo.get_merged_branches()
+    assert "feature" in merged
 
 
-def test_fetch_and_prune(git_env):
-    """Test fetch and prune operation."""
-    os.chdir(git_env.repo_dir)
+def test_get_gone_branches(git_test_env: GitTestEnv) -> None:
+    """Test getting gone branches."""
+    # Create a branch and push it
+    git_test_env.create_branch("feature")
+    git_test_env.create_commit()
+    git_test_env.push_branch("feature")
 
-    # Create and delete a remote branch
-    git_env.create_branch("feature/test", "Feature test")
-    git_env.push_branch("feature/test")
-    git_env.delete_remote_branch("feature/test")
+    # Create a repo object
+    repo = GitRepo(git_test_env.clone_dir)
 
-    # Fetch and prune
-    git.fetch_and_prune()
+    # Delete remote branch
+    git_test_env.delete_remote_branch("feature")
 
-
-def test_filter_protected_branches():
-    """Test filtering protected branches."""
-    branches = ["main", "develop", "feature/123"]
-    protected = ["main"]
-    filtered = git.filter_protected_branches(branches, protected)
-    assert filtered == ["develop", "feature/123"]
+    # Check gone branches
+    gone = repo.get_gone_branches()
+    assert "feature" in gone
 
 
-def test_get_merged_remote_branches(git_env):
-    """Test getting merged remote branches."""
-    os.chdir(git_env.repo_dir)
+def test_get_gone_branches_with_multiple_remotes(git_test_env: GitTestEnv) -> None:
+    """Test getting gone branches with multiple remotes."""
+    # Create and push a branch
+    git_test_env.create_branch("feature")
+    git_test_env.create_commit()
+    git_test_env.push_branch("feature")
 
-    # Create and push feature branches
-    git_env.create_branch("feature/1", "Feature 1")
-    git_env.create_branch("feature/2", "Feature 2")
-    git_env.push_branch("feature/1")
-    git_env.push_branch("feature/2")
+    # Add another remote
+    repo = GitRepo(git_test_env.clone_dir)
+    repo.repo.create_remote("upstream", git_test_env.origin_dir)
 
-    # Merge one branch
-    git_env.merge_branch("feature/1")
+    # Delete from origin
+    git_test_env.delete_remote_branch("feature")
 
-    # Get merged remote branches
-    branches = git.get_merged_remote_branches()
-    assert "feature/1" in branches
-    assert "feature/2" not in branches
-
-
-def test_get_merged_remote_branches_empty(git_env):
-    """Test getting merged remote branches when none exist."""
-    os.chdir(git_env.repo_dir)
-    branches = git.get_merged_remote_branches()
-    assert not branches
+    # Check gone branches
+    gone = repo.get_gone_branches()
+    assert "feature" in gone
 
 
-def test_get_merged_remote_branches_with_current(git_env):
-    """Test getting merged remote branches with current branch remote."""
-    os.chdir(git_env.repo_dir)
+def test_delete_branch(git_test_env: GitTestEnv) -> None:
+    """Test deleting a branch."""
+    # Create a branch but stay on main
+    git_test_env.create_branch("feature", checkout=False)
+    git_test_env.checkout_branch("feature")
+    git_test_env.create_commit()
+    git_test_env.checkout_branch("main")
 
-    # Create and push feature branches
-    git_env.create_branch("feature/1", "Feature 1")
-    git_env.create_branch("feature/2", "Feature 2")
-    git_env.push_branch("feature/1")
-    git_env.push_branch("feature/2")
+    # Create a repo object
+    repo = GitRepo(git_test_env.clone_dir)
 
-    # Switch to feature/1 and merge feature/2
-    git_env.switch_branch("feature/1")
-    git_env.merge_branch("feature/2", "feature/1")
-
-    # Get merged remote branches
-    branches = git.get_merged_remote_branches()
-    assert "feature/2" in branches
-    assert "feature/1" not in branches  # Current branch should be excluded
+    # Delete the branch
+    repo.delete_branch("feature", force=True)
+    assert "feature" not in [b.name for b in repo.repo.heads]
 
 
-def test_delete_remote_branch(git_env):
-    """Test deleting a remote branch."""
-    os.chdir(git_env.repo_dir)
-
-    # Create and push a feature branch
-    git_env.create_branch("feature/1", "Feature 1")
-    git_env.push_branch("feature/1")
-
-    # Delete it
-    git.delete_remote_branch("feature/1")
-
-    # Verify it's gone
-    assert "feature/1" not in git_env.get_remote_branches()
+def test_delete_nonexistent_branch(git_test_env: GitTestEnv) -> None:
+    """Test deleting a nonexistent branch."""
+    repo = GitRepo(git_test_env.clone_dir)
+    with pytest.raises(GitError, match="does not exist"):
+        repo.delete_branch("nonexistent")
 
 
-def test_delete_remote_branch_error(git_env):
-    """Test error handling when deleting a remote branch."""
-    os.chdir(git_env.repo_dir)
+def test_delete_current_branch(git_test_env: GitTestEnv) -> None:
+    """Test deleting the current branch."""
+    # Create branches
+    git_test_env.create_branch("feature")
+    git_test_env.create_commit()
+    git_test_env.create_branch("other")
+    git_test_env.create_commit()
 
-    # Create a branch that doesn't exist remotely
-    branch_name = "non-existent-branch"
-    git.create_branch(branch_name)
+    # Create a repo object
+    repo = GitRepo(git_test_env.clone_dir)
 
-    with pytest.raises(git.GitError):
-        git.delete_remote_branch(branch_name)
+    # Try to delete the current branch
+    with pytest.raises(GitError, match="Cannot delete current branch"):
+        repo.delete_branch("other")
+
+    # Switch to main and delete other branches
+    git_test_env.checkout_branch("main")
+    repo.delete_branch("feature", force=True)
+    repo.delete_branch("other", force=True)
+    assert "feature" not in [b.name for b in repo.repo.heads]
+    assert "other" not in [b.name for b in repo.repo.heads]
+
+
+def test_delete_protected_branch(git_test_env: GitTestEnv) -> None:
+    """Test deleting a protected branch."""
+    repo = GitRepo(git_test_env.clone_dir)
+    with pytest.raises(GitError, match="Cannot delete branch main"):
+        repo.delete_branch("main")
+
+
+def test_get_current_branch_name(git_test_env: GitTestEnv) -> None:
+    """Test that we can get the current branch name."""
+    assert git_test_env.repo.get_current_branch_name() == "main"
+
+
+def test_get_latest_commit_sha(git_test_env: GitTestEnv) -> None:
+    """Test that we can get the latest commit SHA for a branch."""
+    # Create a commit on the main branch
+    create_file_in_repo(git_test_env.repo_dir, "file1.txt", "content1")
+    git_test_env.repo.repo.index.add(["file1.txt"])
+    commit = git_test_env.repo.repo.index.commit("Initial commit")
+
+    # Get the latest commit SHA for the main branch
+    latest_commit_sha = git_test_env.repo.get_latest_commit_sha("main")
+    assert latest_commit_sha == commit.hexsha
+
+
+def test_get_latest_commit_sha_for_nonexistent_branch(git_test_env: GitTestEnv) -> None:
+    """Test getting the latest commit SHA for a nonexistent branch."""
+    with pytest.raises(ValueError, match="Branch 'nonexistent' does not exist."):
+        git_test_env.repo.get_latest_commit_sha("nonexistent")
+
+
+def test_get_repo_root(git_test_env: GitTestEnv) -> None:
+    """Test that we can get the repository root directory."""
+    assert git_test_env.repo.get_repo_root() == git_test_env.repo_dir
+
+
+def test_get_repo_root_with_no_working_tree(git_test_env: GitTestEnv) -> None:
+    """Test getting repo root with no working tree."""
+    # Create a bare repo
+    bare_path = Path(git_test_env.temp_dir) / "bare.git"
+    bare_repo = Repo.init(str(bare_path), bare=True)
+    repo = GitRepo(str(bare_repo.git_dir))
+    with pytest.raises(ValueError, match="does not have a working tree"):
+        repo.get_repo_root()
+
+
+def test_is_branch_upstream_of_another(git_test_env: GitTestEnv) -> None:
+    """Test that we can check if one branch is upstream of another."""
+    # Create two branches
+    git_test_env.repo.create_branch("branch1")
+    create_file_in_repo(git_test_env.repo_dir, "file1.txt", "content1")
+    git_test_env.repo.repo.index.add(["file1.txt"])
+    git_test_env.repo.repo.index.commit("Commit to branch1")
+
+    git_test_env.repo.create_branch("branch2", "branch1")
+    git_test_env.repo.switch_to_branch("branch2")
+    create_file_in_repo(git_test_env.repo_dir, "file2.txt", "content2")
+    git_test_env.repo.repo.index.add(["file2.txt"])
+    git_test_env.repo.repo.index.commit("Commit to branch2")
+
+    # Check if branch1 is upstream of branch2
+    assert git_test_env.repo.is_branch_upstream_of_another("branch1", "branch2")
+    assert not git_test_env.repo.is_branch_upstream_of_another("branch2", "branch1")
+
+
+def test_is_branch_upstream_of_another_with_nonexistent_branch(
+    git_test_env: GitTestEnv,
+) -> None:
+    """Test checking upstream status with nonexistent branch."""
+    with pytest.raises(ValueError, match="does not exist"):
+        git_test_env.repo.is_branch_upstream_of_another("nonexistent", "main")
+    with pytest.raises(ValueError, match="does not exist"):
+        git_test_env.repo.is_branch_upstream_of_another("main", "nonexistent")
+
+
+def test_is_on_branch(git_test_env: GitTestEnv) -> None:
+    """Test that we can check if we are on a specific branch."""
+    assert git_test_env.repo.is_on_branch("main")
+    git_test_env.repo.create_branch("test_branch")
+    assert not git_test_env.repo.is_on_branch("test_branch")
+    git_test_env.repo.switch_to_branch("test_branch")
+    assert git_test_env.repo.is_on_branch("test_branch")
+
+
+def test_switch_to_branch(git_test_env: GitTestEnv) -> None:
+    """Test that we can switch to a branch."""
+    git_test_env.repo.create_branch("test_branch")
+    git_test_env.repo.switch_to_branch("test_branch")
+    assert git_test_env.repo.is_on_branch("test_branch")
+    git_test_env.repo.switch_to_branch("main")
+    assert git_test_env.repo.is_on_branch("main")
+
+
+def test_switch_to_nonexistent_branch(git_test_env: GitTestEnv) -> None:
+    """Test switching to a nonexistent branch."""
+    with pytest.raises(GitCommandError):
+        git_test_env.repo.switch_to_branch("nonexistent")
+
+
+def test_get_branch_name_from_ref_string(git_test_env: GitTestEnv) -> None:
+    """Test that we can get the branch name from a ref string."""
+    git_test_env.repo.create_branch("test_branch")
+    branch_name = git_test_env.repo.branch_ops._get_branch_name_from_ref_string(
+        "refs/heads/test_branch"
+    )
+    assert branch_name == "test_branch"
+
+
+def test_get_branch_name_from_invalid_ref_string(git_test_env: GitTestEnv) -> None:
+    """Test getting branch name from an invalid ref string."""
+    branch_name = git_test_env.repo.branch_ops._get_branch_name_from_ref_string(
+        "invalid/ref/string"
+    )
+    assert branch_name == "invalid/ref/string"

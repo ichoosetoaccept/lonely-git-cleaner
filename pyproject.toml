@@ -1,14 +1,17 @@
 [project]
 name = "arborist"
 version = "0.1.0"
-description = "Clean up git branches that are gone or merged"
+description = "Clean up git branches that are gone or merged, local or remote"
 authors = [
-    { name = "Ismar Slomic", email = "ismar@slomic.no" }
+    { name = "Ismar Iljazovic" }
 ]
 dependencies = [
     "typer>=0.9.0",
     "rich>=13.7.0",
     "pydantic>=2.6.1",
+    "gitpython>=3.1.42",
+    "pytest-cov>=6.0.0",
+    "ruff>=0.8.4",
 ]
 requires-python = ">=3.12"
 readme = "README.md"
@@ -45,6 +48,15 @@ select = [
     "COM", # flake8-commas
 ]
 ignore = ["COM812"]  # Ignore trailing comma rule that conflicts with formatter
+
+[tool.ruff.lint.pydocstyle]
+convention = "numpy"
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+skip-magic-trailing-comma = false
+line-ending = "auto"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
