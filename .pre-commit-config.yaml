@@ -44,14 +44,14 @@ repos:
 
       - id: branch-name
         name: Check branch naming convention
-        entry: python -c 'import sys, re, subprocess; branch = subprocess.check_output(["git", "rev-parse", "--abbrev-ref", "HEAD"]).decode().strip(); patterns = ["^feature/", "^bugfix/", "^hotfix/", "^release/", "^ci/", "^main$"]; sys.exit(1) if not any(re.match(p, branch) for p in patterns) else print(f"Branch name {branch} follows convention")'
+        entry: python -c 'from git import Repo; import sys, re; repo = Repo("."); branch = repo.active_branch.name; patterns = ["^feature/", "^bugfix/", "^hotfix/", "^release/", "^ci/", "^main$"]; sys.exit(1) if not any(re.match(p, branch) for p in patterns) else print(f"Branch name {branch} follows convention")'
         language: system
         pass_filenames: false
         always_run: true
 
       - id: no-commit-to-main
         name: Prevent commits to main branch
-        entry: python -c 'import sys, subprocess; branch = subprocess.check_output(["git", "rev-parse", "--abbrev-ref", "HEAD"]).decode().strip(); sys.exit(1) if branch == "main" else True'
+        entry: python -c 'from git import Repo; import sys; branch = Repo(".").active_branch.name; sys.exit(1) if branch == "main" else True'
         language: system
         stages: [pre-commit]
         pass_filenames: false

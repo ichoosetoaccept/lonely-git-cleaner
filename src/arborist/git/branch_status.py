@@ -24,59 +24,58 @@ class BranchStatusManager:
         Parameters
         ----------
         repo : Repo
-            GitPython repository object
-
+            GitPython repository instance
         """
         self.repo = repo
 
-    def _get_merged_branches(self, target_branch: str = "main") -> set[str]:
-        """Get merged branches.
+    def _get_branch_status(
+        self, branch: Head, target_branch: str = "main"
+    ) -> BranchStatus:
+        """Get status of a branch.
 
         Parameters
         ----------
-        target_branch : str, optional
-            Branch to check for merges against, by default "main"
+        branch : Head
+            Branch to check
+        target_branch : str
+            Branch to check for merges against
 
         Returns
         -------
-        Set[str]
-            Set of merged branch names
-
+        BranchStatus
+            Status of the branch
         """
         try:
-            merged_branches = set()
-            for branch in self.repo.heads:
-                if branch.name == target_branch:
-                    continue
-                try:
-                    merge_base = self.repo.merge_base(branch, target_branch)
-                    if merge_base and merge_base[0] == branch.commit:
-                        merged_branches.add(branch.name)
-                except GitCommandError:
-                    continue
-            return merged_branches
-        except GitCommandError:
-            return set()
+            # Check if branch is gone
+            if self._is_branch_gone(branch):
+                return BranchStatus.GONE
 
-    def _get_gone_branches_from_status(self) -> set[str]:
-        """Get gone branches from git status.
+            # Check if branch is merged
+            target = self.repo.heads[target_branch]
+            if self.repo.is_ancestor(branch.commit, target.commit):
+                return BranchStatus.MERGED
+
+            return BranchStatus.UNMERGED
+        except (GitCommandError, KeyError):
+            return BranchStatus.UNKNOWN
+
+    def get_branch_status(self, target_branch: str = "main") -> dict[str, BranchStatus]:
+        """Get status of all branches.
+
+        Parameters
+        ----------
+        target_branch : str
+            Branch to check for merges against
 
         Returns
         -------
-        Set[str]
-            Set of gone branch names
-
+        Dict[str, BranchStatus]
+            Dictionary mapping branch names to their status
         """
-        try:
-            gone_branches = set()
-            status = self.repo.git.status("-sb")
-            for line in status.split("\n"):
-                if "[gone]" in line:
-                    branch = line.split("...")[0].strip("# ")
-                    gone_branches.add(branch)
-            return gone_branches
-        except GitCommandError:
-            return set()
+        status = {}
+        for branch in self.repo.heads:
+            status[branch.name] = self._get_branch_status(branch, target_branch)
+        return status
 
     def _get_remote_tracking_branches(self) -> dict[str, RemoteReference]:
         """Get remote tracking branches.
@@ -85,7 +84,6 @@ class BranchStatusManager:
         -------
         Dict[str, RemoteReference]
             Dictionary mapping local branch names to their remote tracking branches
-
         """
         tracking_branches = {}
         try:
@@ -109,7 +107,6 @@ class BranchStatusManager:
         -------
         bool
             True if the branch is gone, False otherwise
-
         """
         try:
             tracking_branch = branch.tracking_branch()
@@ -119,7 +116,8 @@ class BranchStatusManager:
             remote_exists = False
             for remote in self.repo.remotes:
                 try:
-                    remote.fetch(tracking_branch.remote_head)
+                    # Try to fetch the specific branch
+                    remote.fetch(refspec=tracking_branch.remote_head)
                     remote_exists = True
                     break
                 except GitCommandError:
@@ -129,54 +127,6 @@ class BranchStatusManager:
         except (GitCommandError, AttributeError):
             return False
 
-    def get_branch_status(self, target_branch: str = "main") -> dict[str, BranchStatus]:
-        """Get branch status.
-
-        Parameters
-        ----------
-        target_branch : str, optional
-            Branch to check for merges against, by default "main"
-
-        Returns
-        -------
-        Dict[str, BranchStatus]
-            Dictionary mapping branch names to their status
-
-        """
-        try:
-            # Fetch from all remotes to ensure we have up-to-date information
-            for remote in self.repo.remotes:
-                try:
-                    remote.fetch()
-                except GitCommandError:
-                    pass
-
-            branch_status = {}
-            merged_branches = self._get_merged_branches(target_branch)
-            gone_branches = self._get_gone_branches_from_status()
-
-            for branch in self.repo.heads:
-                if branch.name == target_branch:
-                    continue
-
-                try:
-                    if branch.name in gone_branches or self._is_branch_gone(branch):
-                        branch_status[branch.name] = BranchStatus.GONE
-                    elif branch.name in merged_branches:
-                        branch_status[branch.name] = BranchStatus.MERGED
-                    else:
-                        branch_status[branch.name] = BranchStatus.UNMERGED
-                except (GitCommandError, AttributeError):
-                    branch_status[branch.name] = BranchStatus.UNKNOWN
-
-            return branch_status
-        except GitCommandError:
-            return {
-                branch.name: BranchStatus.UNKNOWN
-                for branch in self.repo.heads
-                if branch.name != target_branch
-            }
-
     def get_gone_branches(self) -> list[str]:
         """Get gone branches.
 
@@ -184,7 +134,6 @@ class BranchStatusManager:
         -------
         List[str]
             List of gone branch names
-
         """
         branch_status = self.get_branch_status()
         return [
@@ -198,14 +147,13 @@ class BranchStatusManager:
 
         Parameters
         ----------
-        target_branch : str, optional
-            Branch to check for merges against, by default "main"
+        target_branch : str
+            Branch to check for merges against
 
         Returns
         -------
         List[str]
             List of merged branch names
-
         """
         branch_status = self.get_branch_status(target_branch)
         return [

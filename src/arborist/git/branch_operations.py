@@ -60,14 +60,17 @@ class BranchOperations:
 
             # Try to delete the branch
             try:
-                delete_flag = "-D" if force else "-d"
-                self.repo.git.branch(delete_flag, branch_name)
+                branch = self.repo.heads[branch_name]
+                branch.delete(force=force)
             except GitCommandError as err:
                 if "used by worktree" in str(err):
                     # Remove worktree first
                     try:
-                        self.repo.git.worktree("remove", "--force", branch_name)
-                        self.repo.git.branch(delete_flag, branch_name)
+                        worktree = next(
+                            wt for wt in self.repo.worktrees if wt.name == branch_name
+                        )
+                        worktree.remove(force=True)
+                        branch.delete(force=force)
                     except GitCommandError as worktree_err:
                         raise GitError(
                             f"Failed to remove worktree: {worktree_err}"
@@ -105,7 +108,8 @@ class BranchOperations:
 
             # Delete the branch
             try:
-                self.repo.git.push("origin", "--delete", branch_name)
+                origin = self.repo.remote()
+                origin.push(refspec=f":{branch_name}")
             except GitCommandError as err:
                 msg = f"Failed to delete remote branch {branch_name}: {err}"
                 raise GitError(msg) from err
@@ -125,7 +129,8 @@ class BranchOperations:
             The commit or branch to start from
         """
         if start_point:
-            self.repo.git.branch(branch_name, start_point)
+            commit = self.repo.commit(start_point)
+            self.repo.create_head(branch_name, commit)
         else:
             self.repo.create_head(branch_name)
 
@@ -180,10 +185,9 @@ class BranchOperations:
             True if upstream_branch is an ancestor of downstream_branch
         """
         try:
-            upstream_sha = self.get_latest_commit_sha(upstream_branch_name)
-            downstream_sha = self.get_latest_commit_sha(downstream_branch_name)
-            self.repo.git.merge_base("--is-ancestor", upstream_sha, downstream_sha)
-            return True
+            upstream_commit = self.repo.branches[upstream_branch_name].commit
+            downstream_commit = self.repo.branches[downstream_branch_name].commit
+            return self.repo.is_ancestor(upstream_commit, downstream_commit)
         except GitCommandError:
             return False
 
@@ -210,7 +214,7 @@ class BranchOperations:
         branch_name : str
             The name of the branch to switch to
         """
-        self.repo.git.checkout(branch_name)
+        self.repo.heads[branch_name].checkout()
 
     def _get_branch_name_from_ref_string(self, ref_string: str) -> str:
         """Get branch name from a ref string.
