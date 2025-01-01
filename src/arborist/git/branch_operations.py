@@ -1,234 +1,227 @@
-"""Branch manipulation operations."""
+"""Branch operations module."""
 
-from git import Repo
-from git.exc import GitCommandError
+from typing import Optional
+
+from git import GitCommandError, Repo
+from git.refs import Head
 
 from arborist.exceptions import GitError
+from arborist.git.common import (
+    BranchName,
+    get_branch,
+    log_git_error,
+    validate_branch_exists,
+    validate_branch_name,
+)
 
 
 class BranchOperations:
-    """Handles branch manipulation operations."""
+    """Branch operations class."""
 
     def __init__(self, repo: Repo) -> None:
-        """Initialize with a Git repository.
+        """Initialize branch operations.
 
         Parameters
         ----------
         repo : Repo
-            The GitPython repository instance
+            GitPython repository instance
         """
         self.repo = repo
 
-    def _validate_branch(self, branch_name: str) -> None:
-        """Validate that a branch exists.
+    # Validation methods
+    def _validate_not_current_branch(self, branch: Head) -> None:
+        """Validate that a branch is not the current branch.
 
         Parameters
         ----------
-        branch_name : str
-            The name of the branch to validate
+        branch : Head
+            Branch to validate
 
         Raises
         ------
         GitError
-            If the branch does not exist
+            If the branch is the current branch
         """
-        if branch_name not in self.repo.heads:
-            raise GitError(f"Branch {branch_name} does not exist")
+        if branch == self.repo.active_branch:
+            raise GitError(f"Cannot delete current branch '{branch.name}'")
 
-    def delete_branch(self, branch_name: str, force: bool = False) -> None:
-        """Delete a local branch.
+    def _validate_not_protected(
+        self, branch: Head, protected_branches: list[str]
+    ) -> None:
+        """Validate that a branch is not protected.
 
         Parameters
         ----------
-        branch_name : str
-            The name of the branch to delete
+        branch : Head
+            Branch to validate
+        protected_branches : list[str]
+            List of protected branch names
+
+        Raises
+        ------
+        GitError
+            If the branch is protected
+        """
+        if branch.name in protected_branches:
+            raise GitError(f"Cannot delete protected branch '{branch.name}'")
+
+    # Branch operations
+    def _handle_worktree_deletion(self, branch: Head) -> None:
+        """Handle deletion of worktrees associated with a branch.
+
+        Parameters
+        ----------
+        branch : Head
+            Branch to handle worktrees for
+
+        Raises
+        ------
+        GitError
+            If worktree deletion fails
+        """
+        try:
+            for worktree in self.repo.git.worktree("list").splitlines():
+                if branch.name in worktree:
+                    path = worktree.split()[0]
+                    self.repo.git.worktree("remove", "--force", path)
+        except GitCommandError as err:
+            log_git_error(
+                GitError(str(err)),
+                f"Failed to delete worktree for branch '{branch.name}'",
+            )
+            raise GitError(f"Failed to delete worktree: {err}") from err
+
+    def _delete_branch_safely(self, branch: Head, force: bool = False) -> None:
+        """Delete a branch safely.
+
+        Parameters
+        ----------
+        branch : Head
+            Branch to delete
         force : bool
-            Whether to force deletion of unmerged branches
+            Force deletion
 
         Raises
         ------
         GitError
-            If the branch cannot be deleted
+            If branch deletion fails
         """
         try:
-            self._validate_branch(branch_name)
+            # Delete local branch
+            self.repo.delete_head(branch.name, force=force)
 
-            # First check if we're on the branch we're trying to delete
-            current_branch = self.repo.active_branch.name
-            if current_branch == branch_name:
-                raise GitError("Cannot delete current branch")
+            # Delete remote branch if it exists
+            if branch.tracking_branch():
+                remote = branch.tracking_branch().remote_name
+                self.repo.git.push(remote, "--delete", branch.name)
+        except GitCommandError as err:
+            log_git_error(
+                GitError(str(err)), f"Failed to delete branch '{branch.name}'"
+            )
+            raise GitError(f"Failed to delete branch: {err}") from err
 
-            # Try to delete the branch
-            try:
-                branch = self.repo.heads[branch_name]
-                branch.delete(force=force)
-            except GitCommandError as err:
-                if "used by worktree" in str(err):
-                    # Remove worktree first
-                    try:
-                        worktree = next(
-                            wt for wt in self.repo.worktrees if wt.name == branch_name
-                        )
-                        worktree.remove(force=True)
-                        branch.delete(force=force)
-                    except GitCommandError as worktree_err:
-                        raise GitError(
-                            f"Failed to remove worktree: {worktree_err}"
-                        ) from worktree_err
-                elif "not fully merged" in str(err) and not force:
-                    raise GitError(
-                        f"Branch {branch_name} is not fully merged. "
-                        "Use --force to delete anyway."
-                    ) from err
-                else:
-                    raise GitError(
-                        f"Failed to delete branch {branch_name}: {err}"
-                    ) from err
-
-        except GitError as err:
-            raise GitError(f"Failed to delete branch {branch_name}: {err}") from err
-
-    def delete_remote_branch(self, branch_name: str) -> None:
-        """Delete a remote branch.
+    def delete_branch(
+        self,
+        branch_name: BranchName,
+        protected_branches: Optional[list[str]] = None,
+        force: bool = False,
+    ) -> None:
+        """Delete a branch.
 
         Parameters
         ----------
         branch_name : str
-            The name of the branch to delete
+            Name of the branch to delete
+        protected_branches : Optional[list[str]]
+            List of protected branch names
+        force : bool
+            Force deletion
 
         Raises
         ------
         GitError
-            If the branch cannot be deleted
+            If branch deletion fails
         """
         try:
-            # Check if remote exists
-            if not self.repo.remotes:
-                raise GitError("No remote repository")
+            # Validate branch name and existence
+            validate_branch_name(branch_name)
+            validate_branch_exists(self.repo, branch_name)
 
-            # Delete the branch
-            try:
-                origin = self.repo.remote()
-                origin.push(refspec=f":{branch_name}")
-            except GitCommandError as err:
-                msg = f"Failed to delete remote branch {branch_name}: {err}"
-                raise GitError(msg) from err
+            # Get branch and validate it
+            branch = get_branch(self.repo, branch_name)
+            self._validate_not_current_branch(branch)
+            if protected_branches:
+                self._validate_not_protected(branch, protected_branches)
 
+            # Handle worktrees and delete branch
+            self._handle_worktree_deletion(branch)
+            self._delete_branch_safely(branch, force)
         except GitError as err:
-            msg = f"Failed to delete remote branch {branch_name}: {err}"
-            raise GitError(msg) from err
+            log_git_error(err, f"Failed to delete branch '{branch_name}'")
+            raise GitError(f"Failed to delete branch: {err}") from err
 
-    def create_branch(self, branch_name: str, start_point: str | None = None) -> None:
-        """Create a new branch from the given start point, or HEAD if not specified.
+    def create_branch(
+        self, branch_name: BranchName, start_point: Optional[str] = None
+    ) -> None:
+        """Create a new branch.
 
         Parameters
         ----------
         branch_name : str
-            The name of the new branch
+            Name of the branch to create
         start_point : Optional[str]
-            The commit or branch to start from
-        """
-        if start_point:
-            commit = self.repo.commit(start_point)
-            self.repo.create_head(branch_name, commit)
-        else:
-            self.repo.create_head(branch_name)
-
-    def get_current_branch_name(self) -> str:
-        """Get the name of the currently checked out branch.
-
-        Returns
-        -------
-        str
-            The name of the current branch
-        """
-        return self.repo.active_branch.name
-
-    def get_latest_commit_sha(self, branch_name: str) -> str:
-        """Get the latest commit SHA for the given branch.
-
-        Parameters
-        ----------
-        branch_name : str
-            The name of the branch
-
-        Returns
-        -------
-        str
-            The commit SHA
+            Starting point for the branch
 
         Raises
         ------
-        ValueError
-            If the branch does not exist
+        GitError
+            If branch creation fails
         """
         try:
-            return self.repo.branches[branch_name].commit.hexsha
-        except IndexError as err:
-            raise ValueError(f"Branch '{branch_name}' does not exist.") from err
+            # Validate branch name
+            validate_branch_name(branch_name)
 
-    def is_branch_upstream_of_another(
-        self, upstream_branch_name: str, downstream_branch_name: str
-    ) -> bool:
-        """Check if one branch is upstream of another.
+            # Create branch
+            if start_point:
+                validate_branch_exists(self.repo, start_point)
+                self.repo.create_head(branch_name, start_point)
+            else:
+                self.repo.create_head(branch_name)
+        except GitCommandError as err:
+            log_git_error(
+                GitError(str(err)), f"Failed to create branch '{branch_name}'"
+            )
+            raise GitError(f"Failed to create branch: {err}") from err
+        except GitError as err:
+            log_git_error(err, f"Failed to create branch '{branch_name}'")
+            raise GitError(f"Failed to create branch: {err}") from err
 
-        Parameters
-        ----------
-        upstream_branch_name : str
-            The name of the potential upstream branch
-        downstream_branch_name : str
-            The name of the potential downstream branch
-
-        Returns
-        -------
-        bool
-            True if upstream_branch is an ancestor of downstream_branch
-        """
-        try:
-            upstream_commit = self.repo.branches[upstream_branch_name].commit
-            downstream_commit = self.repo.branches[downstream_branch_name].commit
-            return self.repo.is_ancestor(upstream_commit, downstream_commit)
-        except GitCommandError:
-            return False
-
-    def is_on_branch(self, branch_name: str) -> bool:
-        """Check if the current branch is the specified branch.
+    def switch_branch(self, branch_name: BranchName) -> None:
+        """Switch to a branch.
 
         Parameters
         ----------
         branch_name : str
-            The name of the branch to check
+            Name of the branch to switch to
 
-        Returns
-        -------
-        bool
-            True if the current branch matches the specified branch
+        Raises
+        ------
+        GitError
+            If branch switch fails
         """
-        return self.get_current_branch_name() == branch_name
+        try:
+            # Validate branch name and existence
+            validate_branch_name(branch_name)
+            validate_branch_exists(self.repo, branch_name)
 
-    def switch_to_branch(self, branch_name: str) -> None:
-        """Switch to the specified branch.
-
-        Parameters
-        ----------
-        branch_name : str
-            The name of the branch to switch to
-        """
-        self.repo.heads[branch_name].checkout()
-
-    def _get_branch_name_from_ref_string(self, ref_string: str) -> str:
-        """Get branch name from a ref string.
-
-        Parameters
-        ----------
-        ref_string : str
-            The ref string (e.g., 'refs/heads/main')
-
-        Returns
-        -------
-        str
-            The branch name
-        """
-        if ref_string.startswith("refs/heads/"):
-            return ref_string[len("refs/heads/") :]
-        return ref_string
+            # Switch branch
+            branch = get_branch(self.repo, branch_name)
+            branch.checkout()
+        except GitCommandError as err:
+            log_git_error(
+                GitError(str(err)), f"Failed to switch to branch '{branch_name}'"
+            )
+            raise GitError(f"Failed to switch to branch: {err}") from err
+        except GitError as err:
+            log_git_error(err, f"Failed to switch to branch '{branch_name}'")
+            raise GitError(f"Failed to switch to branch: {err}") from err

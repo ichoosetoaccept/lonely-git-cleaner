@@ -5,3 +5,10 @@ Use pytest for testing and be sure to use it idiomatically and completely.
 Use "uv run pytest -v -s" for example to run installed dependencies via uv. This way no virtual environment is needed.
 Use the installed linters and formatters with the --fix or --write flag to automatically fix and format code before attempting to fix stuff yourself.
 Aim for maximum maintainability.
+Don't repeat yourself.
+All our tests should adhere to the FIRST principle:
+- Fast
+- Isolated
+- Repeatable
+- Self-validating
+- Timely

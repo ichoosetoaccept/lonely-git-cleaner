@@ -1,0 +1,2 @@
+[console_scripts]
+arborist = arborist.cli:app

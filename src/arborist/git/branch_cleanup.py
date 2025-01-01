@@ -136,8 +136,14 @@ class BranchCleanup:
         Returns
         -------
         Optional[str]
-            Name of safe branch to switch to, or None if none found
+            Name of safe branch to switch to, or None if current branch is not in
+            to_delete
         """
+        # If current branch is not in to_delete, no need to find a safe branch
+        if current not in to_delete:
+            return None
+
+        # Find a branch that's not in to_delete and not the current branch
         for branch in self.repo.heads:
             if branch.name not in to_delete and branch.name != current:
                 return branch.name
