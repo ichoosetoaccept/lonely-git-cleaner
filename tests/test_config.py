@@ -5,9 +5,10 @@ from pathlib import Path
 from typing import Generator
 
 import pytest
+from pydantic import ValidationError
+
 from arborist.config import ArboristConfig
 from arborist.errors import ConfigError, ErrorCode
-from pydantic import ValidationError
 
 
 @pytest.fixture
