@@ -105,13 +105,23 @@ class BranchOperations:
             If branch deletion fails
         """
         try:
+            # Delete remote branch first if it exists
+            tracking_branch = branch.tracking_branch()
+            if tracking_branch:
+                remote = tracking_branch.remote_name
+                try:
+                    self.repo.git.push(remote, "--delete", branch.name)
+                    # Fetch to update remote refs
+                    self.repo.git.fetch(remote, "--prune")
+                except GitCommandError as err:
+                    log_git_error(
+                        GitError(str(err)),
+                        f"Failed to delete remote branch '{branch.name}'",
+                    )
+                    raise GitError(f"Failed to delete remote branch: {err}") from err
+
             # Delete local branch
             self.repo.delete_head(branch.name, force=force)
-
-            # Delete remote branch if it exists
-            if branch.tracking_branch():
-                remote = branch.tracking_branch().remote_name
-                self.repo.git.push(remote, "--delete", branch.name)
         except GitCommandError as err:
             log_git_error(GitError(str(err)), f"Failed to delete branch '{branch.name}'")
             raise GitError(f"Failed to delete branch: {err}") from err
@@ -155,63 +165,3 @@ class BranchOperations:
         except GitError as err:
             log_git_error(err, f"Failed to delete branch '{branch_name}'")
             raise GitError(f"Failed to delete branch: {err}") from err
-
-    def create_branch(self, branch_name: BranchName, start_point: Optional[str] = None) -> None:
-        """Create a new branch.
-
-        Parameters
-        ----------
-        branch_name : str
-            Name of the branch to create
-        start_point : Optional[str]
-            Starting point for the branch
-
-        Raises
-        ------
-        GitError
-            If branch creation fails
-        """
-        try:
-            # Validate branch name
-            validate_branch_name(branch_name)
-
-            # Create branch
-            if start_point:
-                validate_branch_exists(self.repo, start_point)
-                self.repo.create_head(branch_name, start_point)
-            else:
-                self.repo.create_head(branch_name)
-        except GitCommandError as err:
-            log_git_error(GitError(str(err)), f"Failed to create branch '{branch_name}'")
-            raise GitError(f"Failed to create branch: {err}") from err
-        except GitError as err:
-            log_git_error(err, f"Failed to create branch '{branch_name}'")
-            raise GitError(f"Failed to create branch: {err}") from err
-
-    def switch_branch(self, branch_name: BranchName) -> None:
-        """Switch to a branch.
-
-        Parameters
-        ----------
-        branch_name : str
-            Name of the branch to switch to
-
-        Raises
-        ------
-        GitError
-            If branch switch fails
-        """
-        try:
-            # Validate branch name and existence
-            validate_branch_name(branch_name)
-            validate_branch_exists(self.repo, branch_name)
-
-            # Switch branch
-            branch = get_branch(self.repo, branch_name)
-            branch.checkout()
-        except GitCommandError as err:
-            log_git_error(GitError(str(err)), f"Failed to switch to branch '{branch_name}'")
-            raise GitError(f"Failed to switch to branch: {err}") from err
-        except GitError as err:
-            log_git_error(err, f"Failed to switch to branch '{branch_name}'")
-            raise GitError(f"Failed to switch to branch: {err}") from err

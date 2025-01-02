@@ -5,11 +5,10 @@ from pathlib import Path
 from typing import Generator
 
 import pytest
-from git import Repo
-from git.repo.base import Repo as GitRepo
-
 from arborist.exceptions import GitError
 from arborist.git.branch_cleanup import BranchCleanup
+from git import Repo
+from git.repo.base import Repo as GitRepo
 
 # Configure root logger to show debug messages
 logging.basicConfig(level=logging.DEBUG)
@@ -98,11 +97,25 @@ def test_is_protected_by_pattern(cleanup_manager: BranchCleanup) -> None:
     # Test empty patterns
     assert not cleanup_manager._is_protected_by_pattern("feature/test", [])
 
-    # Test matching patterns
+    # Test exact matches
     patterns = ["main", "master", "develop"]
     assert cleanup_manager._is_protected_by_pattern("main", patterns)
     assert cleanup_manager._is_protected_by_pattern("master", patterns)
     assert cleanup_manager._is_protected_by_pattern("develop", patterns)
+    assert not cleanup_manager._is_protected_by_pattern("feature/test", patterns)
+
+    # Test wildcard patterns
+    patterns = ["release-*", "hotfix-*"]
+    assert cleanup_manager._is_protected_by_pattern("release-1.0", patterns)
+    assert cleanup_manager._is_protected_by_pattern("hotfix-123", patterns)
+    assert not cleanup_manager._is_protected_by_pattern("feature/test", patterns)
+
+    # Test prefix matches
+    patterns = ["main", "release"]
+    assert cleanup_manager._is_protected_by_pattern("main", patterns)
+    assert cleanup_manager._is_protected_by_pattern("main-1.0", patterns)
+    assert cleanup_manager._is_protected_by_pattern("release", patterns)
+    assert cleanup_manager._is_protected_by_pattern("release-2.0", patterns)
     assert not cleanup_manager._is_protected_by_pattern("feature/test", patterns)
 
 

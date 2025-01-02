@@ -21,50 +21,31 @@ A CLI tool to clean up Git branches. Like a skilled arborist pruning trees, this
 
 ## Installation
 
-### Global Installation (Recommended for Users)
-
-This installs the tool globally on your system, making it available in any terminal session:
-
-```bash
-uv pip install git+https://github.com/ichoosetoaccept/arborist.git
-```
-
-After installation:
-- The `arb` command will be available globally
-- No need to activate any virtual environment
-- Works in any terminal session or directory
-- Persists after terminal restarts
-
 ### Development Installation
 
-This sets up a development environment for contributing to the project:
+To install the package for local development:
 
 ```bash
 # Clone the repository
 git clone https://github.com/ichoosetoaccept/arborist.git
 cd arborist
 
-# Run the development setup script
-./scripts/install-dev.sh
+# Install dependencies and the package in development mode
+uv sync --editable
+
+# Install the package as a tool to make `arb` available globally
+uv tool install -e .
 ```
 
-The install script will:
-1. Create a virtual environment for development
-2. Install all development dependencies
-3. Make the development version available globally
-
 After installation:
-- The `arb` command will be available globally
+- The `arb` command will be available globally (you may need to restart your shell)
 - Changes you make to the code will be reflected immediately
-- Run tests with: `source .venv/bin/activate && pytest`
-- The virtual environment is only needed for running tests and development tools
+- Run tests with: `uv run pytest -v`
+- No virtual environment activation is needed as uv manages this automatically
 
 ## Usage
 
 ```bash
-# Install the package
-uv pip install arborist
-
 # Show help
 arb --help
 
@@ -127,23 +108,20 @@ You can configure default behavior by creating a `.arboristrc` file in your home
 
 ### Requirements
 
-- Python 3.12 or higher
+- Python 3.10 or higher
 - uv package manager
 
 ### Running Tests
 
 ```bash
-# Activate the development environment
-source .venv/bin/activate
-
 # Run tests with coverage
-pytest  # Coverage config is in pyproject.toml
+uv run pytest
 
 # Run linting
-ruff check .
+uv run ruff check .
 
 # Run formatting
-ruff format .
+uv run ruff format .
 ```
 
 Test coverage includes:

@@ -5,10 +5,9 @@ from pathlib import Path
 from typing import Generator
 
 import pytest
-from pydantic import ValidationError
-
 from arborist.config import ArboristConfig
 from arborist.errors import ConfigError, ErrorCode
+from pydantic import ValidationError
 
 
 @pytest.fixture
@@ -123,3 +122,87 @@ def test_save_config_permission_error(tmp_path: Path) -> None:
 
     assert exc_info.value.code == ErrorCode.CONFIG_PERMISSION
     assert str(config_path) in exc_info.value.details
+
+
+def test_load_invalid_config(temp_config_file: Path) -> None:
+    """Test loading invalid configuration file.
+
+    Parameters
+    ----------
+    temp_config_file : Path
+        Path to temporary config file
+    """
+    # Create an invalid JSON file
+    temp_config_file.write_text("{invalid json")
+
+    with pytest.raises(ConfigError) as exc_info:
+        ArboristConfig.load_config(str(temp_config_file))
+    assert exc_info.value.code == ErrorCode.CONFIG_INVALID
+
+
+def test_branch_name_pattern() -> None:
+    """Test branch name pattern validation."""
+    # Test valid pattern
+    config = ArboristConfig(branch={"name_pattern": r"^feature/[a-z0-9-]+$"})
+    assert config.branch.name_pattern == r"^feature/[a-z0-9-]+$"
+
+    # Test invalid pattern (not a valid regex)
+    with pytest.raises(ValidationError):
+        ArboristConfig(branch={"name_pattern": "["})
+
+
+def test_invalid_chars_config() -> None:
+    """Test invalid characters configuration."""
+    # Test custom invalid chars
+    config = ArboristConfig(branch={"invalid_chars": ["#", "@"]})
+    assert config.branch.invalid_chars == ["#", "@"]
+
+    # Test empty list (allowing all characters)
+    config = ArboristConfig(branch={"invalid_chars": []})
+    assert config.branch.invalid_chars == []
+
+
+def test_nested_env_config() -> None:
+    """Test nested environment variable configuration."""
+    os.environ["ARBORIST_BRANCH__NAME_PATTERN"] = r"^feature/[a-z0-9-]+$"
+    os.environ["ARBORIST_BRANCH__INVALID_CHARS"] = '["#", "@"]'
+    os.environ["ARBORIST_GIT__GC_AUTO"] = "false"
+
+    config = ArboristConfig()
+    assert config.branch.name_pattern == r"^feature/[a-z0-9-]+$"
+    assert config.branch.invalid_chars == ["#", "@"]
+    assert not config.git.gc_auto
+
+    # Clean up
+    del os.environ["ARBORIST_BRANCH__NAME_PATTERN"]
+    del os.environ["ARBORIST_BRANCH__INVALID_CHARS"]
+    del os.environ["ARBORIST_GIT__GC_AUTO"]
+
+
+def test_config_precedence(temp_config_file: Path) -> None:
+    """Test configuration precedence (env vars override file).
+
+    Parameters
+    ----------
+    temp_config_file : Path
+        Path to temporary config file
+    """
+    # Create config file
+    config = ArboristConfig(
+        branch={"protected_patterns": ["develop"]},
+        git={"reflog_expiry": "60.days"},
+    )
+    config.save_config(temp_config_file)
+
+    # Set environment variables
+    os.environ["ARBORIST_BRANCH__PROTECTED_PATTERNS"] = '["main", "master"]'
+    os.environ["ARBORIST_GIT__REFLOG_EXPIRY"] = "30.days"
+
+    # Load config - env vars should take precedence
+    loaded_config = ArboristConfig.load_config(str(temp_config_file))
+    assert loaded_config.branch.protected_patterns == ["main", "master"]
+    assert loaded_config.git.reflog_expiry == "30.days"
+
+    # Clean up
+    del os.environ["ARBORIST_BRANCH__PROTECTED_PATTERNS"]
+    del os.environ["ARBORIST_GIT__REFLOG_EXPIRY"]
