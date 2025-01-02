@@ -6,10 +6,7 @@ on:
   # Also run when the repository is first created/setup
   create:
 
-permissions:
-  contents: write
-  pull-requests: write
-  actions: write
+permissions: {}
 
 jobs:
   protection:
