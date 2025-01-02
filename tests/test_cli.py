@@ -1,142 +1,137 @@
-"""Tests for command-line interface."""
+"""Test the CLI interface."""
+
+import logging
+import re
+from pathlib import Path
+from typing import Generator
 
 import pytest
+from git.repo.base import Repo
 from typer.testing import CliRunner
 
 from arborist.cli import app
-from tests.git_test_env import GitHubTestEnvironment
+
+# Configure logging to show debug messages in test output
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
+
+# Create console handler and set level to debug
+ch = logging.StreamHandler()
+ch.setLevel(logging.DEBUG)
+
+# Create formatter
+formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+
+# Add formatter to ch
+ch.setFormatter(formatter)
+
+# Add ch to logger
+logger.addHandler(ch)
+
+logger.debug("Initializing test module")
 
 
 @pytest.fixture
-def runner():
-    """Create a CLI test runner."""
-    return CliRunner()
+def cli_runner() -> CliRunner:
+    """Fixture for CLI runner."""
+    return CliRunner(env={"NO_COLOR": "1"})
 
 
 @pytest.fixture
-def git_env():
-    """Create a Git test environment."""
-    env = GitHubTestEnvironment()
-    env.setup()
-    yield env
-    env.cleanup()
+def cli_app() -> Generator:
+    """Fixture for CLI app."""
+    yield app
 
 
-def test_main_not_git_repo(runner, tmp_path, monkeypatch):
-    """Test running in a non-git directory."""
-    monkeypatch.chdir(tmp_path)
-    result = runner.invoke(app, [])
-    assert result.exit_code == 1
-    assert "Not in a git repository" in result.stdout
+def test_clean_command(cli_runner: CliRunner, cli_app, temp_repo: Repo) -> None:
+    """Test clean command."""
+    # Create test branches
+    temp_repo.git.branch("feature/merged")
+    temp_repo.git.branch("feature/unmerged")
 
+    # Make a change on main
+    main_file = Path(temp_repo.working_dir) / "main.txt"
+    main_file.write_text("main branch change")
+    temp_repo.index.add([str(main_file)])
+    temp_repo.index.commit("Change on main")
 
-def test_main_no_branches(runner, git_env, monkeypatch):
-    """Test running with no branches to clean."""
-    monkeypatch.chdir(git_env.repo_dir)
-    result = runner.invoke(app, ["--no-interactive"])
+    # Make a change on feature/merged and merge it into main
+    temp_repo.git.checkout("feature/merged")
+    merged_file = Path(temp_repo.working_dir) / "merged.txt"
+    merged_file.write_text("merged branch change")
+    temp_repo.index.add([str(merged_file)])
+    temp_repo.index.commit("Change on feature/merged")
+    temp_repo.git.checkout("main")
+    temp_repo.git.merge("feature/merged")
+
+    # Make a change on feature/unmerged
+    temp_repo.git.checkout("feature/unmerged")
+    unmerged_file = Path(temp_repo.working_dir) / "unmerged.txt"
+    unmerged_file.write_text("unmerged branch change")
+    temp_repo.index.add([str(unmerged_file)])
+    temp_repo.index.commit("Change on feature/unmerged")
+    temp_repo.git.checkout("main")
+
+    logger.debug(f"Invoking clean command with path: {temp_repo.working_dir}")
+    result = cli_runner.invoke(cli_app, ["clean", "--no-interactive", "--path", str(temp_repo.working_dir)])
+    logger.debug(f"Command output: {result.output}")
+    logger.debug(f"Command exit code: {result.exit_code}")
     assert result.exit_code == 0
-    assert "No branches with gone remotes found" in result.stdout.replace("\n", " ")
+    assert "feature/merged" in result.output
+    assert "feature/unmerged" not in result.output
 
 
-def test_main_with_gone_branches(runner, git_env, monkeypatch):
-    """Test cleaning up gone branches."""
-    monkeypatch.chdir(git_env.repo_dir)
+def test_list_command(cli_runner: CliRunner, cli_app, temp_repo: Repo) -> None:
+    """Test list command."""
+    # Create test branches
+    temp_repo.git.branch("feature/test")
 
-    # Create and delete a branch
-    git_env.create_branch("feature/test", "Test feature branch")
-    git_env.delete_remote_branch("feature/test")
-
-    result = runner.invoke(app, ["--no-interactive"])
+    logger.debug(f"Invoking list command with path: {temp_repo.working_dir}")
+    result = cli_runner.invoke(cli_app, ["list", "--path", str(temp_repo.working_dir)])
+    logger.debug(f"Command output: {result.output}")
+    logger.debug(f"Command exit code: {result.exit_code}")
     assert result.exit_code == 0
-    assert "feature/test" in result.stdout
+    assert "main" in result.output
+    assert "feature/test" in result.output
 
 
-def test_main_dry_run(runner, git_env, monkeypatch):
-    """Test dry run mode."""
-    monkeypatch.chdir(git_env.repo_dir)
+def test_delete_command(cli_runner: CliRunner, cli_app, temp_repo: Repo) -> None:
+    """Test delete command."""
+    # Create test branch
+    temp_repo.git.branch("feature/to-delete")
 
-    # Create and delete a branch
-    git_env.create_branch("feature/test", "Test feature branch")
-    git_env.delete_remote_branch("feature/test")
-
-    result = runner.invoke(app, ["--dry-run", "--no-interactive"])
+    logger.debug(f"Invoking delete command with path: {temp_repo.working_dir}")
+    result = cli_runner.invoke(cli_app, ["delete_branch", "feature/to-delete", "--path", str(temp_repo.working_dir)])
+    logger.debug(f"Command output: {result.output}")
+    logger.debug(f"Command exit code: {result.exit_code}")
     assert result.exit_code == 0
-    assert "Would delete branch feature/test" in result.stdout
+    # Strip ANSI color codes before comparison
+    clean_output = re.sub(r"\x1b\[[0-9;]*m", "", result.output)
+    assert "Deleted branch 'feature/to-delete'" in clean_output
 
 
-def test_main_interactive_mode(runner, git_env, monkeypatch):
-    """Test interactive mode."""
-    monkeypatch.chdir(git_env.repo_dir)
-
-    # Create and delete a branch
-    git_env.create_branch("feature/test", "Test feature branch")
-    git_env.delete_remote_branch("feature/test")
-
-    result = runner.invoke(app, [], input="y\n")
+def test_create_command(cli_runner: CliRunner, cli_app, temp_repo: Repo) -> None:
+    """Test create command."""
+    logger.debug(f"Invoking create command with path: {temp_repo.working_dir}")
+    result = cli_runner.invoke(cli_app, ["create_branch", "feature/new", "--path", str(temp_repo.working_dir)])
+    logger.debug(f"Command output: {result.output}")
+    logger.debug(f"Command exit code: {result.exit_code}")
     assert result.exit_code == 0
-    assert "feature/test" in result.stdout
+    # Strip ANSI color codes before comparison
+    clean_output = re.sub(r"\x1b\[[0-9;]*m", "", result.output)
+    assert "Created branch 'feature/new'" in clean_output
 
 
-def test_main_no_gc(runner, git_env, monkeypatch):
-    """Test skipping garbage collection."""
-    monkeypatch.chdir(git_env.repo_dir)
-    result = runner.invoke(app, ["--no-gc", "--no-interactive"])
+def test_switch_command(cli_runner: CliRunner, cli_app, temp_repo: Repo) -> None:
+    """Test switch command."""
+    # Create test branch
+    temp_repo.git.branch("feature/test")
+
+    logger.debug(f"Invoking switch command with path: {temp_repo.working_dir}")
+    result = cli_runner.invoke(cli_app, ["switch", "feature/test", "--path", str(temp_repo.working_dir)])
+    logger.debug(f"Command output: {result.output}")
+    logger.debug(f"Command exit code: {result.exit_code}")
     assert result.exit_code == 0
-
-
-def test_main_protect_branches(runner, git_env, monkeypatch):
-    """Test protected branches are not deleted."""
-    monkeypatch.chdir(git_env.repo_dir)
-
-    # Create and delete a protected branch
-    git_env.create_branch("develop", "Protected branch")
-    git_env.delete_remote_branch("develop")
-
-    result = runner.invoke(app, ["--protect", "develop", "--no-interactive"])
-    assert result.exit_code == 0
-    assert "All gone branches are protected" in result.stdout
-
-
-def test_delete_branches_interactive_individual_choices(runner, git_env, monkeypatch):
-    """Test interactive deletion with individual branch choices."""
-    monkeypatch.chdir(git_env.repo_dir)
-
-    # Create and delete two branches
-    git_env.create_branch("feature/123", "Feature 123")
-    git_env.create_branch("feature/456", "Feature 456")
-    git_env.delete_remote_branch("feature/123")
-    git_env.delete_remote_branch("feature/456")
-
-    result = runner.invoke(app, [], input="y\ny\nn\n")
-    assert result.exit_code == 0
-    assert "feature/123" in result.stdout
-    assert "feature/456" in result.stdout
-
-
-def test_delete_remote_branches_interactive_confirm(runner, git_env, monkeypatch):
-    """Test interactive deletion of remote branches with confirmation."""
-    monkeypatch.chdir(git_env.repo_dir)
-
-    # Create and delete two branches
-    git_env.create_branch("feature/123", "Feature 123")
-    git_env.create_branch("feature/456", "Feature 456")
-    git_env.delete_remote_branch("feature/123")
-    git_env.delete_remote_branch("feature/456")
-
-    result = runner.invoke(app, [], input="y\ny\ny\n")
-    assert result.exit_code == 0
-    assert "feature/123" in result.stdout
-    assert "feature/456" in result.stdout
-
-
-def test_delete_remote_branches_interactive_reject(runner, git_env, monkeypatch):
-    """Test rejecting remote branch deletion in interactive mode."""
-    monkeypatch.chdir(git_env.repo_dir)
-
-    # Create and delete a branch
-    git_env.create_branch("feature/test", "Test feature branch")
-    git_env.delete_remote_branch("feature/test")
-
-    result = runner.invoke(app, [], input="n\n")
-    assert result.exit_code == 0
-    assert "feature/test" in result.stdout
+    # Strip ANSI color codes before comparison
+    clean_output = re.sub(r"\x1b\[[0-9;]*m", "", result.output)
+    assert "Switched to branch 'feature/test'" in clean_output

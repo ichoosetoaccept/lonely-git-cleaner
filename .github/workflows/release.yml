@@ -4,6 +4,12 @@ on:
   push:
     tags:
       - 'v*.*.*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to create release from'
+        required: true
+        type: string
 
 jobs:
   test:
@@ -30,6 +36,7 @@ jobs:
           uv pip install -e ".[dev]"
       - name: Run tests
         run: |
+          source .venv/bin/activate
           pytest tests/ -v --cov=src/arborist --cov-report=term-missing
 
   build:
@@ -67,7 +74,7 @@ jobs:
         with:
           name: Release ${{ github.ref_name }}
           generate_release_notes: true
-          draft: true
+          draft: false
           prerelease: false
           fail_on_unmatched_files: true
       - name: Download artifact

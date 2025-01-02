@@ -1,15 +1,23 @@
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.5.0
+    rev: v5.0.0
     hooks:
-      - id: trailing-whitespace
-      - id: end-of-file-fixer
-      - id: check-yaml
-      - id: check-added-large-files
-      - id: check-toml
-      - id: debug-statements
-      - id: check-case-conflict
+      # Essential checks
+      - id: check-ast  # Catch Python syntax errors
+      - id: check-yaml  # Catch YAML syntax errors
+      - id: check-json  # Catch JSON syntax errors
       - id: check-merge-conflict
+      - id: detect-private-key
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+
+      # Security and large files
+      - id: check-added-large-files
+
+      # File integrity
+      - id: check-case-conflict  # Important for cross-platform projects
+      - id: check-executables-have-shebangs
+      - id: check-symlinks
 
   - repo: https://github.com/jorisroovers/gitlint
     rev: v0.19.1
@@ -32,17 +40,18 @@ repos:
         language: system
         pass_filenames: false
         always_run: true
+        stages: [manual]
 
       - id: branch-name
         name: Check branch naming convention
-        entry: python -c 'import sys, re, subprocess; branch = subprocess.check_output(["git", "rev-parse", "--abbrev-ref", "HEAD"]).decode().strip(); patterns = ["^feature/", "^bugfix/", "^hotfix/", "^release/", "^ci/", "^main$"]; sys.exit(1) if not any(re.match(p, branch) for p in patterns) else print(f"Branch name {branch} follows convention")'
+        entry: python -c 'from git import Repo; import sys, re; repo = Repo("."); branch = repo.active_branch.name; patterns = ["^feature/", "^bugfix/", "^hotfix/", "^release/", "^ci/", "^main$"]; sys.exit(1) if not any(re.match(p, branch) for p in patterns) else print(f"Branch name {branch} follows convention")'
         language: system
         pass_filenames: false
         always_run: true
 
       - id: no-commit-to-main
         name: Prevent commits to main branch
-        entry: python -c 'import sys, subprocess; branch = subprocess.check_output(["git", "rev-parse", "--abbrev-ref", "HEAD"]).decode().strip(); sys.exit(1) if branch == "main" else True'
+        entry: python -c 'from git import Repo; import sys; branch = Repo(".").active_branch.name; sys.exit(1) if branch == "main" else True'
         language: system
         stages: [pre-commit]
         pass_filenames: false

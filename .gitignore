@@ -1,3 +1,7 @@
+.clinerules
+.windsurfrules
+.cursorrules
+
 # Python
 __pycache__/
 *.py[cod]
@@ -19,29 +23,12 @@ wheels/
 *.egg-info/
 .installed.cfg
 *.egg
-
-# Virtual Environment
 .env
 .venv
 env/
 venv/
 ENV/
-
-# Coverage
+.pytest_cache/
 .coverage
-.coverage.*
 coverage.xml
-*.cover
 htmlcov/
-
-# IDE
-.idea/
-.vscode/
-*.swp
-*.swo
-*~
-
-# OS
-.DS_Store
-Thumbs.db
-uv.lock
