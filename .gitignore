@@ -23,12 +23,25 @@ wheels/
 *.egg-info/
 .installed.cfg
 *.egg
+
+# Virtual Environment
 .env
 .venv
 env/
 venv/
 ENV/
-.pytest_cache/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Coverage
 .coverage
-coverage.xml
+coverage/
 htmlcov/
+
+# Misc
+.DS_Store
+.pytest_cache/

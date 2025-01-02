@@ -39,22 +39,28 @@ arb = "arborist.cli:app"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-python_files = ["test_*.py"]
-addopts = "-v --cov=arborist --cov-report=term-missing"
+addopts = [
+    "--verbose",
+    "--cov=src/arborist",
+    "--cov-report=term-missing",
+    "--cov-report=html:coverage/html",
+    "--no-cov-on-fail",
+    "--cov-branch"
+]
 
 [tool.coverage.run]
-source = ["arborist"]
 branch = true
+parallel = true
+source = ["src/arborist"]
 
 [tool.coverage.report]
 exclude_lines = [
     "pragma: no cover",
     "def __repr__",
-    "if self.debug:",
     "raise NotImplementedError",
     "if __name__ == .__main__.:",
     "pass",
-    "raise ImportError",
+    "raise AssertionError"
 ]
 
 [tool.ruff]
