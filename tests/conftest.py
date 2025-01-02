@@ -40,8 +40,9 @@ def temp_repo() -> Generator[Repo, None, None]:
         repo.index.add(["README.md"])
         repo.index.commit("Initial commit")
 
-        # Create main branch
-        repo.git.branch("-m", "main")
+        # Create main branch and set it as default
+        repo.git.branch("-M", "main")  # Force rename to main
+        repo.git.symbolic_ref("HEAD", "refs/heads/main")  # Set main as default branch
 
         yield repo
 
