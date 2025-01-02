@@ -3,6 +3,7 @@
 [![Python Version](https://img.shields.io/badge/python-3.12%2B-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Tests](https://github.com/ichoosetoaccept/arborist/actions/workflows/test.yml/badge.svg)](https://github.com/ichoosetoaccept/arborist/actions/workflows/test.yml)
+[![codecov](https://codecov.io/gh/ichoosetoaccept/arborist/branch/main/graph/badge.svg)](https://codecov.io/gh/ichoosetoaccept/arborist)
 [![Code style: ruff](https://img.shields.io/badge/code%20style-ruff-000000.svg)](https://github.com/astral-sh/ruff)
 [![Conventional Commits](https://img.shields.io/badge/Conventional%20Commits-✓-green.svg)](https://conventionalcommits.org)
 [![SemVer](https://img.shields.io/badge/SemVer-✓-blue.svg)](https://semver.org/)
