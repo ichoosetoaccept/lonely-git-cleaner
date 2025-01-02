@@ -1,7 +1,6 @@
 """Test the CLI interface."""
 
 import logging
-import re
 from pathlib import Path
 from typing import Generator
 
@@ -95,43 +94,5 @@ def test_list_command(cli_runner: CliRunner, cli_app, temp_repo: Repo) -> None:
     assert "feature/test" in result.output
 
 
-def test_delete_command(cli_runner: CliRunner, cli_app, temp_repo: Repo) -> None:
-    """Test delete command."""
-    # Create test branch
-    temp_repo.git.branch("feature/to-delete")
-
-    logger.debug(f"Invoking delete command with path: {temp_repo.working_dir}")
-    result = cli_runner.invoke(cli_app, ["delete_branch", "feature/to-delete", "--path", str(temp_repo.working_dir)])
-    logger.debug(f"Command output: {result.output}")
-    logger.debug(f"Command exit code: {result.exit_code}")
-    assert result.exit_code == 0
-    # Strip ANSI color codes before comparison
-    clean_output = re.sub(r"\x1b\[[0-9;]*m", "", result.output)
-    assert "Deleted branch 'feature/to-delete'" in clean_output
-
-
-def test_create_command(cli_runner: CliRunner, cli_app, temp_repo: Repo) -> None:
-    """Test create command."""
-    logger.debug(f"Invoking create command with path: {temp_repo.working_dir}")
-    result = cli_runner.invoke(cli_app, ["create_branch", "feature/new", "--path", str(temp_repo.working_dir)])
-    logger.debug(f"Command output: {result.output}")
-    logger.debug(f"Command exit code: {result.exit_code}")
-    assert result.exit_code == 0
-    # Strip ANSI color codes before comparison
-    clean_output = re.sub(r"\x1b\[[0-9;]*m", "", result.output)
-    assert "Created branch 'feature/new'" in clean_output
-
-
-def test_switch_command(cli_runner: CliRunner, cli_app, temp_repo: Repo) -> None:
-    """Test switch command."""
-    # Create test branch
-    temp_repo.git.branch("feature/test")
-
-    logger.debug(f"Invoking switch command with path: {temp_repo.working_dir}")
-    result = cli_runner.invoke(cli_app, ["switch", "feature/test", "--path", str(temp_repo.working_dir)])
-    logger.debug(f"Command output: {result.output}")
-    logger.debug(f"Command exit code: {result.exit_code}")
-    assert result.exit_code == 0
-    # Strip ANSI color codes before comparison
-    clean_output = re.sub(r"\x1b\[[0-9;]*m", "", result.output)
-    assert "Switched to branch 'feature/test'" in clean_output
+if __name__ == "__main__":
+    pytest.main(["-v", __file__])

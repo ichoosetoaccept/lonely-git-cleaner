@@ -16,7 +16,7 @@ BranchDict = Dict[str, "BranchStatus"]
 BranchList = List[str]
 
 # Branch name validation pattern
-BRANCH_NAME_PATTERN = re.compile(r"^[a-zA-Z0-9][a-zA-Z0-9/_-]*[a-zA-Z0-9]$")
+BRANCH_NAME_PATTERN = re.compile(r"^[a-zA-Z0-9][a-zA-Z0-9/_.-]*[a-zA-Z0-9]$")
 INVALID_BRANCH_CHARS = {"~", "^", ":", "\\", " ", "*", "?", "[", "]"}
 
 

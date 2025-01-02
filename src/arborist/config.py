@@ -1,6 +1,7 @@
 """Configuration handling for arborist."""
 
 import os
+import re
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -25,6 +26,32 @@ class BranchConfig(BaseModel):
         default=["~", "^", ":", "\\", " ", "*", "?", "[", "]"],
         description="Characters that are not allowed in branch names",
     )
+
+    @field_validator("name_pattern")
+    @classmethod
+    def validate_name_pattern(cls, v: str) -> str:
+        """Validate branch name pattern.
+
+        Parameters
+        ----------
+        v : str
+            Pattern to validate
+
+        Returns
+        -------
+        str
+            Validated pattern
+
+        Raises
+        ------
+        ValueError
+            If pattern is not a valid regex
+        """
+        try:
+            re.compile(v)
+            return v
+        except re.error as e:
+            raise ValueError(f"Invalid regex pattern: {e}") from e
 
 
 class GitConfig(BaseModel):
@@ -130,6 +157,34 @@ class ArboristConfig(BaseSettings):
                 cause=e,
             ) from e
 
+    def _update_from_file(self, file_config: "ArboristConfig") -> None:
+        """Update config from file if not set by environment.
+
+        Parameters
+        ----------
+        file_config : ArboristConfig
+            Configuration loaded from file
+        """
+        env_settings = self.get_env_settings()
+        if not env_settings.get("ARBORIST_BRANCH__PROTECTED_PATTERNS"):
+            self.branch.protected_patterns = file_config.branch.protected_patterns
+        if not env_settings.get("ARBORIST_BRANCH__NAME_PATTERN"):
+            self.branch.name_pattern = file_config.branch.name_pattern
+        if not env_settings.get("ARBORIST_BRANCH__INVALID_CHARS"):
+            self.branch.invalid_chars = file_config.branch.invalid_chars
+        if not env_settings.get("ARBORIST_GIT__REFLOG_EXPIRY"):
+            self.git.reflog_expiry = file_config.git.reflog_expiry
+        if not env_settings.get("ARBORIST_GIT__GC_AUTO"):
+            self.git.gc_auto = file_config.git.gc_auto
+        if not env_settings.get("ARBORIST_GIT__FETCH_PRUNE"):
+            self.git.fetch_prune = file_config.git.fetch_prune
+        if not env_settings.get("ARBORIST_DRY_RUN_BY_DEFAULT"):
+            self.dry_run_by_default = file_config.dry_run_by_default
+        if not env_settings.get("ARBORIST_INTERACTIVE"):
+            self.interactive = file_config.interactive
+        if not env_settings.get("ARBORIST_LOG_LEVEL"):
+            self.log_level = file_config.log_level
+
     @classmethod
     def load_config(cls, path: Optional[str] = None) -> "ArboristConfig":
         """Load configuration from file and environment.
@@ -149,15 +204,19 @@ class ArboristConfig(BaseSettings):
         ConfigError
             If configuration cannot be loaded
         """
-        # Load from file
+        # Create base config from environment variables
+        config = cls()
+
+        # Load from file if it exists
         if path is None:
             path = str(Path.home() / ".arboristrc")
 
         try:
             config_path = Path(path)
             if config_path.exists():
-                return cls.model_validate_json(config_path.read_text())
-            return cls()
+                file_config = cls.model_validate_json(config_path.read_text())
+                config._update_from_file(file_config)
+            return config
         except Exception as e:
             raise ConfigError(
                 message="Failed to load configuration",

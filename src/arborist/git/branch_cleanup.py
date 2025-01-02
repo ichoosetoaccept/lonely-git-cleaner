@@ -42,7 +42,28 @@ class BranchCleanup:
         """
         if not patterns:
             return False
-        return any(pattern in branch for pattern in patterns)
+
+        # First check for exact matches
+        if branch in patterns:
+            logger.debug("Branch '%s' is protected by exact match", branch)
+            return True
+
+        # Then check for pattern matches
+        for pattern in patterns:
+            # Handle wildcard patterns
+            if "*" in pattern:
+                import fnmatch
+
+                if fnmatch.fnmatch(branch, pattern):
+                    logger.debug("Branch '%s' is protected by pattern '%s'", branch, pattern)
+                    return True
+            # Handle prefix matches (e.g. 'main' should protect 'main' and 'main-1.0')
+            elif branch.startswith(pattern + "-") or branch == pattern:
+                logger.debug("Branch '%s' is protected by prefix '%s'", branch, pattern)
+                return True
+
+        logger.debug("Branch '%s' is not protected", branch)
+        return False
 
     def _get_branches_to_delete(self, force: bool, protect: list[str] | None = None) -> list[str]:
         """Get list of branches to delete.
