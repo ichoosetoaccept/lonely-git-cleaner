@@ -1,6 +1,5 @@
 """Tests for branch cleanup operations."""
 
-import logging
 from pathlib import Path
 from typing import Generator
 from unittest.mock import patch
@@ -11,26 +10,6 @@ from arborist.git.branch_cleanup import BranchCleanup
 from git import Repo
 from git.exc import GitCommandError
 from git.repo.base import Repo as GitRepo
-
-# Configure root logger to show debug messages
-logging.basicConfig(level=logging.DEBUG)
-
-# Configure package logger
-logger = logging.getLogger("arborist")
-logger.setLevel(logging.DEBUG)
-
-# Create console handler and set level to debug
-ch = logging.StreamHandler()
-ch.setLevel(logging.DEBUG)
-
-# Create formatter
-formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
-
-# Add formatter to ch
-ch.setFormatter(formatter)
-
-# Add ch to logger
-logger.addHandler(ch)
 
 
 @pytest.fixture

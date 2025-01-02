@@ -1,6 +1,5 @@
 """Tests for common git functionality."""
 
-import logging
 from pathlib import Path
 
 import pytest
@@ -17,9 +16,6 @@ from arborist.git.common import (
 )
 from git import GitCommandError, Repo
 from git.repo.base import Repo as GitRepo
-
-# Configure logging
-logger = logging.getLogger(__name__)
 
 
 @pytest.fixture

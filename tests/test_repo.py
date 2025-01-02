@@ -1,6 +1,5 @@
 """Tests for GitRepo class."""
 
-import logging
 from pathlib import Path
 
 import pytest
@@ -8,9 +7,6 @@ from arborist.exceptions import GitError
 from arborist.git.repo import GitRepo as ArboristRepo
 from git import Repo
 from git.repo.base import Repo as GitRepo
-
-# Configure logging
-logger = logging.getLogger(__name__)
 
 
 @pytest.fixture
