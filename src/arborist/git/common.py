@@ -195,21 +195,24 @@ def get_latest_commit_sha(repo: Repo, branch_name: BranchName) -> str:
 def is_branch_upstream_of_another(
     repo: Repo, upstream_branch_name: BranchName, downstream_branch_name: BranchName
 ) -> bool:
-    """Check if one branch is upstream of another.
+    """Check if one branch is merged into another.
+
+    This checks if all changes from upstream_branch are present in downstream_branch,
+    regardless of whether it was merged directly or via squash merge.
 
     Parameters
     ----------
     repo : Repo
         GitPython repository instance
     upstream_branch_name : str
-        The name of the potential upstream branch
+        The name of the branch to check if merged
     downstream_branch_name : str
-        The name of the potential downstream branch
+        The name of the branch to check if merged into
 
     Returns
     -------
     bool
-        True if upstream_branch is an ancestor of downstream_branch
+        True if all changes from upstream_branch are in downstream_branch
 
     Raises
     ------
@@ -221,10 +224,29 @@ def is_branch_upstream_of_another(
         validate_branch_name(downstream_branch_name)
         validate_branch_exists(repo, upstream_branch_name)
         validate_branch_exists(repo, downstream_branch_name)
+
         upstream_commit = repo.branches[upstream_branch_name].commit
         downstream_commit = repo.branches[downstream_branch_name].commit
-        return repo.is_ancestor(upstream_commit, downstream_commit)
+
+        # If they're the same commit, definitely merged
+        if upstream_commit == downstream_commit:
+            return True
+
+        # Find the merge base (common ancestor)
+        merge_base = repo.merge_base(upstream_commit, downstream_commit)
+        if not merge_base:
+            return False
+
+        # If merge base is the same as upstream commit, it means upstream is behind
+        # downstream and thus is considered merged
+        if merge_base[0] == upstream_commit:
+            return True
+
+        # Otherwise, check if there are any changes in upstream that aren't in downstream
+        diffs = upstream_commit.diff(downstream_commit)
+        return len(diffs) == 0
+
     except GitCommandError as err:
         raise GitError(
-            f"Failed to check if '{upstream_branch_name}' is upstream of " f"'{downstream_branch_name}': {err}"
+            f"Failed to check if '{upstream_branch_name}' is merged into " f"'{downstream_branch_name}': {err}"
         ) from err
