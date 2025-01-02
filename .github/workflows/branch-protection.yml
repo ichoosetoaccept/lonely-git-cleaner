@@ -13,7 +13,6 @@ jobs:
     name: Set Branch Protection
     runs-on: ubuntu-latest
     steps:
-      # Use gh CLI to set branch protection rules
       - name: Set Branch Protection Rules
         env:
           GH_TOKEN: ${{ secrets.ADMIN_TOKEN }}
