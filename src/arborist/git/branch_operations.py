@@ -60,8 +60,21 @@ class BranchOperations:
         GitError
             If branch is protected
         """
+        # First check for exact matches
         if branch.name in protected_branches:
             raise GitError(f"Cannot delete protected branch '{branch.name}'")
+
+        # Then check for pattern matches
+        for pattern in protected_branches:
+            # Handle wildcard patterns
+            if "*" in pattern:
+                import fnmatch
+
+                if fnmatch.fnmatch(branch.name, pattern):
+                    raise GitError(f"Cannot delete protected branch '{branch.name}'")
+            # Handle prefix matches (e.g. 'main' should protect 'main' and 'main-1.0')
+            elif branch.name.startswith(pattern + "-") or branch.name == pattern:
+                raise GitError(f"Cannot delete protected branch '{branch.name}'")
 
     def _delete_branch_safely(self, branch: Head, force: bool = False) -> None:
         """Delete a branch safely.
@@ -79,6 +92,9 @@ class BranchOperations:
             If branch deletion fails
         """
         try:
+            # Validate not current branch
+            self._validate_not_current_branch(branch)
+
             # Delete remote branch first if it exists
             tracking_branch = branch.tracking_branch()
             if tracking_branch:
@@ -195,9 +211,10 @@ class BranchOperations:
         """
         gone_branches = []
         for branch in self.repo.heads:
-            if branch.tracking_branch() is None:
+            tracking_branch = branch.tracking_branch()
+            if tracking_branch is None:
                 continue
-            if not branch.tracking_branch().is_valid():
+            if not tracking_branch.is_valid():
                 gone_branches.append(branch.name)
 
         return gone_branches
