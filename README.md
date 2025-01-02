@@ -1,5 +1,12 @@
 # Arborist
 
+[![Python Version](https://img.shields.io/badge/python-3.12%2B-blue.svg)](https://www.python.org/downloads/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Tests](https://github.com/ichoosetoaccept/arborist/actions/workflows/test.yml/badge.svg)](https://github.com/ichoosetoaccept/arborist/actions/workflows/test.yml)
+[![Code style: ruff](https://img.shields.io/badge/code%20style-ruff-000000.svg)](https://github.com/astral-sh/ruff)
+[![Conventional Commits](https://img.shields.io/badge/Conventional%20Commits-✓-green.svg)](https://conventionalcommits.org)
+[![SemVer](https://img.shields.io/badge/SemVer-✓-blue.svg)](https://semver.org/)
+
 A CLI tool to clean up Git branches. Like a skilled arborist pruning trees, this tool helps you maintain a clean Git branch structure by removing merged and stale branches while protecting important ones.
 
 ## Features
