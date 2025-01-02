@@ -34,6 +34,7 @@ jobs:
       - name: Install uv
         run: |
           curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
       - name: Create venv and install dependencies
         run: |
           uv venv .venv
@@ -76,6 +77,7 @@ jobs:
       - name: Install uv
         run: |
           curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
       - name: Install dependencies
         run: |
           uv venv .venv
