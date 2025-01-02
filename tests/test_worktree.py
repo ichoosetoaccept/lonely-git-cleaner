@@ -4,10 +4,11 @@ from pathlib import Path
 from typing import Generator
 
 import pytest
-from arborist.errors import ErrorCode, GitError
-from arborist.git.worktree import WorktreeInfo, WorktreeManager
 from git import Repo
 from git.repo.base import Repo as GitRepo
+
+from arborist.errors import ErrorCode, GitError
+from arborist.git.worktree import WorktreeInfo, WorktreeManager
 
 
 @pytest.fixture

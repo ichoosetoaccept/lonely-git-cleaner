@@ -6,9 +6,10 @@ from pathlib import Path
 from typing import Generator
 
 import pytest
-from arborist.cli import app
 from git.repo.base import Repo
 from typer.testing import CliRunner
+
+from arborist.cli import app
 
 # Configure logging to show debug messages in test output
 logger = logging.getLogger(__name__)

@@ -189,9 +189,7 @@ def get_latest_commit_sha(repo: Repo, branch_name: BranchName) -> str:
         validate_branch_exists(repo, branch_name)
         return repo.branches[branch_name].commit.hexsha
     except (IndexError, GitCommandError) as err:
-        raise GitError(
-            f"Failed to get commit SHA for branch '{branch_name}': {err}"
-        ) from err
+        raise GitError(f"Failed to get commit SHA for branch '{branch_name}': {err}") from err
 
 
 def is_branch_upstream_of_another(
@@ -228,6 +226,5 @@ def is_branch_upstream_of_another(
         return repo.is_ancestor(upstream_commit, downstream_commit)
     except GitCommandError as err:
         raise GitError(
-            f"Failed to check if '{upstream_branch_name}' is upstream of "
-            f"'{downstream_branch_name}': {err}"
+            f"Failed to check if '{upstream_branch_name}' is upstream of " f"'{downstream_branch_name}': {err}"
         ) from err

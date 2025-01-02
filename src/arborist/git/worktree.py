@@ -153,9 +153,7 @@ class WorktreeManager:
                 cause=err,
             ) from err
 
-    def get_worktree_for_branch(
-        self, branch_name: BranchName
-    ) -> Optional[WorktreeInfo]:
+    def get_worktree_for_branch(self, branch_name: BranchName) -> Optional[WorktreeInfo]:
         """Get worktree information for a branch.
 
         Parameters

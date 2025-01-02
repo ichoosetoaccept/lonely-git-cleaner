@@ -101,9 +101,7 @@ class ArboristConfig(BaseSettings):
         """
         valid_levels = {"DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"}
         if v.upper() not in valid_levels:
-            raise ValueError(
-                f"Invalid log level. Must be one of: {', '.join(valid_levels)}"
-            )
+            raise ValueError(f"Invalid log level. Must be one of: {', '.join(valid_levels)}")
         return v.upper()
 
     def save_config(self, path: Optional[Path] = None) -> None:
@@ -176,8 +174,4 @@ class ArboristConfig(BaseSettings):
         Dict[str, Any]
             Dictionary of environment-based settings
         """
-        return {
-            key: value
-            for key, value in os.environ.items()
-            if key.startswith("ARBORIST_")
-        }
+        return {key: value for key, value in os.environ.items() if key.startswith("ARBORIST_")}

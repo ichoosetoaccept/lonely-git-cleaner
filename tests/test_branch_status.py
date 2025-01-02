@@ -4,11 +4,12 @@ from pathlib import Path
 from typing import Generator
 
 import pytest
+from git import Repo
+from git.repo.base import Repo as GitRepo
+
 from arborist.exceptions import GitError
 from arborist.git.branch_status import BranchStatusManager
 from arborist.git.common import BranchStatus
-from git import Repo
-from git.repo.base import Repo as GitRepo
 
 
 @pytest.fixture

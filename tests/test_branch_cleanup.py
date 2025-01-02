@@ -5,10 +5,11 @@ from pathlib import Path
 from typing import Generator
 
 import pytest
-from arborist.exceptions import GitError
-from arborist.git.branch_cleanup import BranchCleanup
 from git import Repo
 from git.repo.base import Repo as GitRepo
+
+from arborist.exceptions import GitError
+from arborist.git.branch_cleanup import BranchCleanup
 
 # Configure root logger to show debug messages
 logging.basicConfig(level=logging.DEBUG)

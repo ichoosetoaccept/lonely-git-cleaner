@@ -45,9 +45,7 @@ class BranchOperations:
         if branch == self.repo.active_branch:
             raise GitError(f"Cannot delete current branch '{branch.name}'")
 
-    def _validate_not_protected(
-        self, branch: Head, protected_branches: list[str]
-    ) -> None:
+    def _validate_not_protected(self, branch: Head, protected_branches: list[str]) -> None:
         """Validate that a branch is not protected.
 
         Parameters
@@ -115,9 +113,7 @@ class BranchOperations:
                 remote = branch.tracking_branch().remote_name
                 self.repo.git.push(remote, "--delete", branch.name)
         except GitCommandError as err:
-            log_git_error(
-                GitError(str(err)), f"Failed to delete branch '{branch.name}'"
-            )
+            log_git_error(GitError(str(err)), f"Failed to delete branch '{branch.name}'")
             raise GitError(f"Failed to delete branch: {err}") from err
 
     def delete_branch(
@@ -160,9 +156,7 @@ class BranchOperations:
             log_git_error(err, f"Failed to delete branch '{branch_name}'")
             raise GitError(f"Failed to delete branch: {err}") from err
 
-    def create_branch(
-        self, branch_name: BranchName, start_point: Optional[str] = None
-    ) -> None:
+    def create_branch(self, branch_name: BranchName, start_point: Optional[str] = None) -> None:
         """Create a new branch.
 
         Parameters
@@ -188,9 +182,7 @@ class BranchOperations:
             else:
                 self.repo.create_head(branch_name)
         except GitCommandError as err:
-            log_git_error(
-                GitError(str(err)), f"Failed to create branch '{branch_name}'"
-            )
+            log_git_error(GitError(str(err)), f"Failed to create branch '{branch_name}'")
             raise GitError(f"Failed to create branch: {err}") from err
         except GitError as err:
             log_git_error(err, f"Failed to create branch '{branch_name}'")
@@ -218,9 +210,7 @@ class BranchOperations:
             branch = get_branch(self.repo, branch_name)
             branch.checkout()
         except GitCommandError as err:
-            log_git_error(
-                GitError(str(err)), f"Failed to switch to branch '{branch_name}'"
-            )
+            log_git_error(GitError(str(err)), f"Failed to switch to branch '{branch_name}'")
             raise GitError(f"Failed to switch to branch: {err}") from err
         except GitError as err:
             log_git_error(err, f"Failed to switch to branch '{branch_name}'")
