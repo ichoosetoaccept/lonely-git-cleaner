@@ -23,7 +23,7 @@ def temp_repo() -> Generator[Repo, None, None]:
         # Initialize git repository
         repo_path = Path(temp_dir) / "test_repo"
         repo_path.mkdir()
-        repo = Repo.init(repo_path)
+        repo = Repo.init(repo_path, initial_branch="main")  # Initialize with main as default branch
 
         # Configure repository
         repo.git.config("core.autocrlf", "false")
@@ -39,10 +39,6 @@ def temp_repo() -> Generator[Repo, None, None]:
         readme_path.write_text("# Test Repository")
         repo.index.add(["README.md"])
         repo.index.commit("Initial commit")
-
-        # Create main branch and set it as default
-        repo.git.branch("-M", "main")  # Force rename to main
-        repo.git.symbolic_ref("HEAD", "refs/heads/main")  # Set main as default branch
 
         yield repo
 
