@@ -20,6 +20,7 @@ src/arborist/git/repo.py
 src/arborist/git/worktree.py
 tests/test_branch_cleanup.py
 tests/test_branch_status.py
+tests/test_cli.py
 tests/test_config.py
 tests/test_format.py
 tests/test_worktree.py

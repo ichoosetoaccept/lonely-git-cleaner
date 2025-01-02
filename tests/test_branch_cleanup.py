@@ -1,5 +1,6 @@
 """Tests for branch cleanup operations."""
 
+import logging
 from pathlib import Path
 from typing import Generator
 
@@ -8,6 +9,26 @@ from arborist.exceptions import GitError
 from arborist.git.branch_cleanup import BranchCleanup
 from git import Repo
 from git.repo.base import Repo as GitRepo
+
+# Configure root logger to show debug messages
+logging.basicConfig(level=logging.DEBUG)
+
+# Configure package logger
+logger = logging.getLogger("arborist")
+logger.setLevel(logging.DEBUG)
+
+# Create console handler and set level to debug
+ch = logging.StreamHandler()
+ch.setLevel(logging.DEBUG)
+
+# Create formatter
+formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+
+# Add formatter to ch
+ch.setFormatter(formatter)
+
+# Add ch to logger
+logger.addHandler(ch)
 
 
 @pytest.fixture
@@ -84,9 +105,7 @@ def test_is_protected_by_pattern(cleanup_manager: BranchCleanup) -> None:
     assert not cleanup_manager._is_protected_by_pattern("feature/test", patterns)
 
 
-def test_get_branches_to_delete(
-    cleanup_manager: BranchCleanup, temp_repo: GitRepo
-) -> None:
+def test_get_branches_to_delete(cleanup_manager: BranchCleanup, temp_repo: GitRepo) -> None:
     """Test getting branches to delete.
 
     Parameters
@@ -127,10 +146,11 @@ def test_get_branches_to_delete(
     # 4. Protected branch
     temp_repo.create_head("develop", "HEAD")
 
+    # Switch back to main before running tests
+    temp_repo.heads.main.checkout()
+
     # Test without force
-    to_delete = cleanup_manager._get_branches_to_delete(
-        force=False, protect=["main", "develop"]
-    )
+    to_delete = cleanup_manager._get_branches_to_delete(force=False, protect=["main", "develop"])
     assert "feature/merged" in to_delete
     assert "feature/gone" in to_delete
     assert "feature/unmerged" not in to_delete
@@ -138,9 +158,7 @@ def test_get_branches_to_delete(
     assert "main" not in to_delete
 
     # Test with force
-    to_delete = cleanup_manager._get_branches_to_delete(
-        force=True, protect=["main", "develop"]
-    )
+    to_delete = cleanup_manager._get_branches_to_delete(force=True, protect=["main", "develop"])
     assert "feature/merged" in to_delete
     assert "feature/gone" in to_delete
     assert "feature/unmerged" in to_delete
@@ -148,9 +166,7 @@ def test_get_branches_to_delete(
     assert "main" not in to_delete
 
 
-def test_validate_branch_exists(
-    cleanup_manager: BranchCleanup, temp_repo: GitRepo
-) -> None:
+def test_validate_branch_exists(cleanup_manager: BranchCleanup, temp_repo: GitRepo) -> None:
     """Test branch existence validation.
 
     Parameters
@@ -169,9 +185,7 @@ def test_validate_branch_exists(
         cleanup_manager._validate_branch_exists("nonexistent")
 
 
-def test_validate_not_current_branch(
-    cleanup_manager: BranchCleanup, temp_repo: GitRepo
-) -> None:
+def test_validate_not_current_branch(cleanup_manager: BranchCleanup, temp_repo: GitRepo) -> None:
     """Test current branch validation.
 
     Parameters
@@ -193,9 +207,7 @@ def test_validate_not_current_branch(
     cleanup_manager._validate_not_current_branch("main")
 
 
-def test_validate_branch_merged(
-    cleanup_manager: BranchCleanup, temp_repo: GitRepo
-) -> None:
+def test_validate_branch_merged(cleanup_manager: BranchCleanup, temp_repo: GitRepo) -> None:
     """Test branch merge status validation.
 
     Parameters
@@ -251,21 +263,15 @@ def test_find_safe_branch(cleanup_manager: BranchCleanup, temp_repo: GitRepo) ->
     temp_repo.create_head("develop", "HEAD")
 
     # Test finding safe branch when current branch is in to_delete
-    safe_branch = cleanup_manager._find_safe_branch(
-        "feature/test1", {"feature/test1", "feature/test2"}
-    )
+    safe_branch = cleanup_manager._find_safe_branch("feature/test1", {"feature/test1", "feature/test2"})
     assert safe_branch in {"main", "develop"}
 
     # Test when current branch is not in to_delete
-    safe_branch = cleanup_manager._find_safe_branch(
-        "develop", {"feature/test1", "feature/test2"}
-    )
+    safe_branch = cleanup_manager._find_safe_branch("develop", {"feature/test1", "feature/test2"})
     assert safe_branch is None
 
 
-def test_delete_single_branch(
-    cleanup_manager: BranchCleanup, temp_repo: GitRepo
-) -> None:
+def test_delete_single_branch(cleanup_manager: BranchCleanup, temp_repo: GitRepo) -> None:
     """Test deleting a single branch.
 
     Parameters
@@ -301,25 +307,19 @@ def test_delete_single_branch(
     status = cleanup_manager.status_manager.get_branch_status()
 
     # Test deleting merged branch
-    success, error = cleanup_manager._delete_single_branch(
-        "feature/merged", False, status
-    )
+    success, error = cleanup_manager._delete_single_branch("feature/merged", False, status)
     assert success
     assert error is None
     assert "feature/merged" not in temp_repo.heads
 
     # Test deleting unmerged branch without force
-    success, error = cleanup_manager._delete_single_branch(
-        "feature/unmerged", False, status
-    )
+    success, error = cleanup_manager._delete_single_branch("feature/unmerged", False, status)
     assert not success
     assert error is not None
     assert "feature/unmerged" in temp_repo.heads
 
     # Test deleting unmerged branch with force
-    success, error = cleanup_manager._delete_single_branch(
-        "feature/unmerged", True, status
-    )
+    success, error = cleanup_manager._delete_single_branch("feature/unmerged", True, status)
     assert success
     assert error is None
     assert "feature/unmerged" not in temp_repo.heads

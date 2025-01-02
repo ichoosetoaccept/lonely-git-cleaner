@@ -153,9 +153,7 @@ def test_list_worktrees(worktree_manager: WorktreeManager, tmp_path: Path) -> No
     assert test_worktree.branch == "feature/test"
 
 
-def test_get_worktree_for_branch(
-    worktree_manager: WorktreeManager, tmp_path: Path
-) -> None:
+def test_get_worktree_for_branch(worktree_manager: WorktreeManager, tmp_path: Path) -> None:
     """Test getting worktree for branch.
 
     Parameters
@@ -255,9 +253,7 @@ def test_move_worktree(worktree_manager: WorktreeManager, tmp_path: Path) -> Non
     assert worktree.path == new_path
 
 
-def test_lock_unlock_worktree(
-    worktree_manager: WorktreeManager, tmp_path: Path
-) -> None:
+def test_lock_unlock_worktree(worktree_manager: WorktreeManager, tmp_path: Path) -> None:
     """Test locking and unlocking a worktree.
 
     Parameters

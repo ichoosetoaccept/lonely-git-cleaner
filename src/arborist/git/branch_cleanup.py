@@ -1,10 +1,14 @@
 """Branch cleanup operations."""
 
+import logging
+
 from git import GitCommandError, Repo
 from rich import print
 
 from arborist.exceptions import GitError
 from arborist.git.branch_status import BranchStatus, BranchStatusManager
+
+logger = logging.getLogger(__name__)
 
 
 class BranchCleanup:
@@ -40,9 +44,7 @@ class BranchCleanup:
             return False
         return any(pattern in branch for pattern in patterns)
 
-    def _get_branches_to_delete(
-        self, force: bool, protect: list[str] | None = None
-    ) -> list[str]:
+    def _get_branches_to_delete(self, force: bool, protect: list[str] | None = None) -> list[str]:
         """Get list of branches to delete.
 
         Parameters
@@ -58,20 +60,36 @@ class BranchCleanup:
             List of branch names to delete
         """
         status = self.status_manager.get_branch_status()
+        logger.debug("Getting branches to delete with force=%s", force)
+        logger.debug("Branch status: %s", status)
         to_delete = []
+        current = self.repo.active_branch.name
 
         for branch, state in status.items():
+            logger.debug("Processing branch '%s' with state '%s'", branch, state)
+
+            # Skip current branch
+            if branch == current:
+                logger.debug("Skipping current branch '%s'", branch)
+                continue
+
             # Skip protected branches
             if protect and self._is_protected_by_pattern(branch, protect):
+                logger.debug("Skipping protected branch '%s'", branch)
                 continue
 
             # Include branch if it's merged or gone
             if state in (BranchStatus.MERGED, BranchStatus.GONE):
+                logger.debug("Adding %s branch '%s' to delete list", state, branch)
                 to_delete.append(branch)
             # Include unmerged branches if force is True
-            elif force and state == BranchStatus.UNMERGED:
+            elif state == BranchStatus.UNMERGED and force:
+                logger.debug("Force is True, adding unmerged branch '%s' to delete list", branch)
                 to_delete.append(branch)
+            else:
+                logger.debug("Skipping branch '%s' (state=%s, force=%s)", branch, state, force)
 
+        logger.debug("Final to_delete list: %s", to_delete)
         return to_delete
 
     def _validate_branch_exists(self, branch: str) -> None:
@@ -149,9 +167,7 @@ class BranchCleanup:
                 return branch.name
         return None
 
-    def _switch_to_safe_branch(
-        self, current: str, to_delete: set[str]
-    ) -> tuple[bool, str]:
+    def _switch_to_safe_branch(self, current: str, to_delete: set[str]) -> tuple[bool, str]:
         """Switch to a safe branch if current branch will be deleted.
 
         Parameters
@@ -196,6 +212,7 @@ class BranchCleanup:
         """
         try:
             self.repo.delete_head(branch, force=force)
+            print(f"Deleted branch '{branch}'")
             return True, ""
         except GitCommandError as err:
             return False, f"Failed to delete branch '{branch}': {err}"
@@ -226,8 +243,8 @@ class BranchCleanup:
             # Validate not current branch
             self._validate_not_current_branch(branch)
 
-            # Check if branch is merged unless force is True
-            if not force:
+            # Check if branch is merged or gone unless force is True
+            if not force and status[branch] == BranchStatus.UNMERGED:
                 self._validate_branch_merged(branch)
 
             # Perform deletion
@@ -251,11 +268,11 @@ class BranchCleanup:
         Returns
         -------
         bool
-            True if user confirms, False otherwise
+            True if user confirms deletion, False otherwise
         """
         print("\nBranches to delete:")
         for branch in to_delete:
-            print(f"  - {branch}")
+            print(f"  {branch}")
         response = input("\nDelete these branches? [y/N] ")
         return response.lower() == "y"
 
@@ -268,17 +285,15 @@ class BranchCleanup:
             List of branches that would be deleted
         """
         if not to_delete:
-            print("No branches to delete")
+            print("[yellow]No branches to delete[/yellow]")
             return
 
-        print("\nWould delete the following branches:")
+        print("\n[yellow]Dry run - would delete:[/yellow]")
         for branch in to_delete:
-            print(f"  - {branch}")
+            print(f"  {branch}")
 
-    def _print_deletion_results(
-        self, deleted: list[str], failed: list[tuple[str, str]]
-    ) -> None:
-        """Print the results of branch deletion.
+    def _print_deletion_results(self, deleted: list[str], failed: list[tuple[str, str]]) -> None:
+        """Print results of branch deletion.
 
         Parameters
         ----------
@@ -288,19 +303,19 @@ class BranchCleanup:
             List of failed branches and their error messages
         """
         if deleted:
-            print("\n[green]Deleted branches:[/green]")
+            print("\nSuccessfully deleted:")
             for branch in deleted:
-                print(f"  - {branch}")
+                print(f"  {branch}")
 
         if failed:
-            print("\n[red]Failed to delete:[/red]")
+            print("\nFailed to delete:")
             for branch, error in failed:
-                print(f"  - {branch}: {error}")
+                print(f"  {branch}: {error}")
 
     def _delete_branches_batch(
         self, to_delete: list[str], force: bool, status: dict[str, BranchStatus]
     ) -> tuple[list[str], list[tuple[str, str]]]:
-        """Delete a batch of branches.
+        """Delete multiple branches.
 
         Parameters
         ----------
@@ -314,16 +329,19 @@ class BranchCleanup:
         Returns
         -------
         Tuple[List[str], List[Tuple[str, str]]]
-            Lists of deleted branches and failed branches with their error messages
+            List of successfully deleted branches and list of failed branches with
+            error messages
         """
         deleted = []
         failed = []
+
         for branch in to_delete:
             success, error = self._delete_single_branch(branch, force, status)
             if success:
                 deleted.append(branch)
             else:
                 failed.append((branch, error))
+
         return deleted, failed
 
     def _delete_branches_in_clean(
@@ -342,34 +360,28 @@ class BranchCleanup:
         force : bool
             Whether to force delete
         no_interactive : bool
-            Whether to skip confirmation
+            Whether to skip confirmation prompts
         dry_run : bool
-            Whether to perform a dry run
+            Whether to only show what would be done
         """
         if not to_delete:
-            print("No branches to delete")
+            print("[yellow]No branches to delete[/yellow]")
             return
 
+        # Handle dry run
         if dry_run:
             self._handle_dry_run(to_delete)
             return
 
-        # Get confirmation if needed
+        # Get user confirmation if needed
         if not no_interactive and not self._prompt_for_deletion(to_delete):
-            print("Operation cancelled")
+            print("[yellow]Operation cancelled[/yellow]")
             return
 
-        # Switch to safe branch if needed
-        current = self.repo.active_branch.name
-        success, message = self._switch_to_safe_branch(current, set(to_delete))
-        if not success:
-            print(f"[red]Error:[/red] {message}")
-            return
-        if message:
-            print(message)
-
-        # Get branch status and delete branches
+        # Get branch status
         status = self.status_manager.get_branch_status()
+
+        # Delete branches
         deleted, failed = self._delete_branches_batch(to_delete, force, status)
 
         # Print results
@@ -386,16 +398,19 @@ class BranchCleanup:
 
         Parameters
         ----------
-        protect : Optional[List[str]], optional
-            List of branch patterns to protect, by default None
-        force : bool, optional
-            Whether to force delete unmerged branches, by default False
-        no_interactive : bool, optional
-            Whether to skip confirmation prompts, by default False
-        dry_run : bool, optional
-            Whether to perform a dry run, by default False
+        protect : Optional[List[str]]
+            List of branch patterns to protect from deletion
+        force : bool
+            Whether to force deletion of unmerged branches
+        no_interactive : bool
+            Whether to skip confirmation prompts
+        dry_run : bool
+            Whether to only show what would be done
         """
+        # Get branches to delete
         to_delete = self._get_branches_to_delete(force, protect)
+
+        # Delete branches
         self._delete_branches_in_clean(to_delete, force, no_interactive, dry_run)
 
     def delete_branch(self, branch: str, force: bool = False) -> None:
@@ -405,8 +420,8 @@ class BranchCleanup:
         ----------
         branch : str
             Branch to delete
-        force : bool, optional
-            Whether to force delete, by default False
+        force : bool
+            Whether to force delete
 
         Raises
         ------

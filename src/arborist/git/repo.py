@@ -80,7 +80,7 @@ class GitRepo:
         GitError
             If the branch cannot be deleted
         """
-        self.branch_ops.delete_branch(branch_name, force)
+        self.branch_ops.delete_branch(branch_name, force=force)
 
     def delete_remote_branch(self, branch_name: str) -> None:
         """Delete a remote branch.
@@ -117,7 +117,7 @@ class GitRepo:
         str
             The name of the current branch
         """
-        return self.branch_ops.get_current_branch_name()
+        return str(self.repo.active_branch)
 
     def get_latest_commit_sha(self, branch_name: str) -> str:
         """Get the latest commit SHA for the given branch.
@@ -156,9 +156,7 @@ class GitRepo:
             raise ValueError("Repository does not have a working tree directory")
         return str(self.repo.working_tree_dir)
 
-    def is_branch_upstream_of_another(
-        self, upstream_branch_name: str, downstream_branch_name: str
-    ) -> bool:
+    def is_branch_upstream_of_another(self, upstream_branch_name: str, downstream_branch_name: str) -> bool:
         """Check if one branch is upstream of another.
 
         Parameters
@@ -173,9 +171,7 @@ class GitRepo:
         bool
             True if upstream_branch is an ancestor of downstream_branch
         """
-        return self.branch_ops.is_branch_upstream_of_another(
-            upstream_branch_name, downstream_branch_name
-        )
+        return self.branch_ops.is_branch_upstream_of_another(upstream_branch_name, downstream_branch_name)
 
     def is_on_branch(self, branch_name: str) -> bool:
         """Check if the current branch is the specified branch.
@@ -190,17 +186,7 @@ class GitRepo:
         bool
             True if the current branch matches the specified branch
         """
-        return self.branch_ops.is_on_branch(branch_name)
-
-    def switch_to_branch(self, branch_name: str) -> None:
-        """Switch to the specified branch.
-
-        Parameters
-        ----------
-        branch_name : str
-            The name of the branch to switch to
-        """
-        self.branch_ops.switch_to_branch(branch_name)
+        return str(self.repo.active_branch) == branch_name
 
     @property
     def heads(self):
@@ -234,3 +220,18 @@ class GitRepo:
             Whether to only show what would be done
         """
         self.branch_cleanup.clean(protect, force, no_interactive, dry_run)
+
+    def switch_branch(self, branch_name: str) -> None:
+        """Switch to a branch.
+
+        Parameters
+        ----------
+        branch_name : str
+            Name of the branch to switch to
+
+        Raises
+        ------
+        GitError
+            If branch switch fails
+        """
+        self.branch_ops.switch_branch(branch_name)

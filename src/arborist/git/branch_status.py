@@ -112,13 +112,18 @@ class BranchStatusManager:
             True if branch is merged into target
         """
         try:
-            return self.repo.is_ancestor(branch.commit, target.commit)
+            # Get the merge base (common ancestor) of the two branches
+            merge_base = self.repo.merge_base(branch.commit, target.commit)
+            if not merge_base:
+                return False
+
+            # A branch is merged if its tip is an ancestor of the target branch
+            # AND the merge base is the same as the branch tip
+            return self.repo.is_ancestor(branch.commit, target.commit) and merge_base[0] == branch.commit
         except GitCommandError:
             return False
 
-    def _get_branch_status(
-        self, branch: Head, target_branch: BranchName = "main"
-    ) -> BranchStatus:
+    def _get_branch_status(self, branch: Head, target_branch: BranchName = "main") -> BranchStatus:
         """Get status of a branch.
 
         Parameters
@@ -145,9 +150,7 @@ class BranchStatusManager:
 
             return BranchStatus.UNMERGED
         except (GitCommandError, GitError) as err:
-            log_git_error(
-                GitError(str(err)), f"Failed to get status for branch '{branch.name}'"
-            )
+            log_git_error(GitError(str(err)), f"Failed to get status for branch '{branch.name}'")
             return BranchStatus.UNKNOWN
 
     # Public query methods
@@ -177,9 +180,7 @@ class BranchStatusManager:
                 status[branch.name] = self._get_branch_status(branch, target_branch)
             return status
         except GitError as err:
-            log_git_error(
-                err, f"Failed to get branch status for target '{target_branch}'"
-            )
+            log_git_error(err, f"Failed to get branch status for target '{target_branch}'")
             raise GitError(f"Failed to get branch status: {err}") from err
 
     def get_gone_branches(self) -> BranchList:
@@ -192,11 +193,7 @@ class BranchStatusManager:
         """
         try:
             branch_status = self.get_branch_status()
-            return [
-                branch
-                for branch, status in branch_status.items()
-                if status == BranchStatus.GONE
-            ]
+            return [branch for branch, status in branch_status.items() if status == BranchStatus.GONE]
         except GitError as err:
             log_git_error(err, "Failed to get gone branches")
             raise GitError("Failed to get gone branches") from err
@@ -221,13 +218,7 @@ class BranchStatusManager:
         """
         try:
             branch_status = self.get_branch_status(target_branch)
-            return [
-                branch
-                for branch, status in branch_status.items()
-                if status == BranchStatus.MERGED
-            ]
+            return [branch for branch, status in branch_status.items() if status == BranchStatus.MERGED]
         except GitError as err:
-            log_git_error(
-                err, f"Failed to get merged branches for target '{target_branch}'"
-            )
+            log_git_error(err, f"Failed to get merged branches for target '{target_branch}'")
             raise GitError(f"Failed to get merged branches: {err}") from err

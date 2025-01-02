@@ -7,7 +7,7 @@ requires-python = ">=3.10"
 license = { text = "MIT" }
 keywords = ["git", "branch", "management"]
 authors = [
-    { name = "Ismar Iljazovic", email = "ismart@gmail.com" },
+    { name = "Ismar Iljazovic" },
 ]
 
 classifiers = [
@@ -30,7 +30,8 @@ dependencies = [
 
 [dependency-groups]
 dev = [
-    "ruff>=0.3.4",
+    "pre-commit-hooks>=5.0.0",
+    "ruff>=0.8.5",
 ]
 
 [project.scripts]
@@ -57,8 +58,10 @@ exclude_lines = [
 ]
 
 [tool.ruff]
-line-length = 88
+line-length = 120
 target-version = "py310"
+
+[tool.ruff.lint]
 select = [
     "E",  # pycodestyle errors
     "W",  # pycodestyle warnings

@@ -2,7 +2,7 @@ Metadata-Version: 2.1
 Name: arborist
 Version: 0.1.0
 Summary: A tool for managing Git branches
-Author-email: Ismar Iljazovic <ismart@gmail.com>
+Author: Ismar Iljazovic
 License: MIT
 Keywords: git,branch,management
 Classifier: Development Status :: 3 - Alpha
