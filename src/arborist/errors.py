@@ -36,6 +36,7 @@ class GitError(Exception):
         message: str,
         code: ErrorCode = ErrorCode.UNKNOWN_ERROR,
         details: Optional[str] = None,
+        branch_name: Optional[str] = None,
         cause: Optional[Exception] = None,
     ) -> None:
         """Initialize git error.
@@ -48,18 +49,20 @@ class GitError(Exception):
             Error code, by default ErrorCode.UNKNOWN_ERROR
         details : Optional[str], optional
             Additional error details, by default None
+        branch_name : Optional[str], optional
+            Name of the branch involved in the error, by default None
         cause : Optional[Exception], optional
             Original exception that caused this error, by default None
         """
         super().__init__(message)
-        self.message = message
         self.code = code
         self.details = details
+        self.branch_name = branch_name
         self.cause = cause
 
 
 class ConfigError(GitError):
-    """Configuration error."""
+    """Custom error type for configuration errors."""
 
     def __init__(
         self,
@@ -81,4 +84,4 @@ class ConfigError(GitError):
         cause : Optional[Exception], optional
             Original exception that caused this error, by default None
         """
-        super().__init__(message, code, details, cause)
+        super().__init__(message, code=code, details=details, cause=cause)

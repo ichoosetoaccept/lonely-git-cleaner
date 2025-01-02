@@ -47,6 +47,9 @@ addopts = [
     "--no-cov-on-fail",
     "--cov-branch"
 ]
+markers = [
+    "raises: marks tests that validate exception raising"
+]
 
 [tool.coverage.run]
 branch = true

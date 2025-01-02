@@ -23,6 +23,7 @@ wheels/
 *.egg-info/
 .installed.cfg
 *.egg
+.pytest_cache/
 
 # Virtual Environment
 .env
@@ -44,4 +45,3 @@ htmlcov/
 
 # Misc
 .DS_Store
-.pytest_cache/

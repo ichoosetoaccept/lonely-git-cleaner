@@ -10,7 +10,7 @@ from rich import print
 from rich.console import Console
 from rich.table import Table
 
-from arborist.exceptions import GitError
+from arborist.errors import GitError
 from arborist.git.repo import GitRepo
 
 # Set default logging level to WARNING

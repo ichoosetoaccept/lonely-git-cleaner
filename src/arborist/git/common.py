@@ -8,7 +8,7 @@ from typing import Dict, List, Union
 from git import GitCommandError, Repo
 from git.refs import Head
 
-from arborist.exceptions import GitError
+from arborist.errors import ErrorCode, GitError
 
 # Type aliases
 BranchName = str
@@ -47,7 +47,7 @@ def log_git_error(error: Union[GitError, GitCommandError], message: str) -> None
 
 
 def validate_branch_name(branch_name: BranchName) -> None:
-    """Validate branch name format.
+    """Validate that a branch name is valid.
 
     Parameters
     ----------
@@ -59,20 +59,62 @@ def validate_branch_name(branch_name: BranchName) -> None:
     GitError
         If the branch name is invalid
     """
+    # Check for empty branch name
     if not branch_name:
-        raise GitError("Branch name cannot be empty")
-
-    if any(char in branch_name for char in INVALID_BRANCH_CHARS):
         raise GitError(
-            f"Branch name '{branch_name}' contains invalid characters. "
-            f"Cannot contain: {', '.join(sorted(INVALID_BRANCH_CHARS))}"
+            "Branch name cannot be empty",
+            code=ErrorCode.BRANCH_ERROR,
+            details="Branch names must contain at least one character",
         )
 
-    if not BRANCH_NAME_PATTERN.match(branch_name):
+    # Check for invalid start/end characters
+    if branch_name.startswith(("-", "/")) or branch_name.endswith(("-", "/")):
         raise GitError(
-            f"Branch name '{branch_name}' is invalid. Must start and end with "
-            "alphanumeric characters and contain only alphanumeric characters, "
-            "forward slashes, underscores, or hyphens"
+            f"Branch name '{branch_name}' is invalid",
+            code=ErrorCode.BRANCH_ERROR,
+            details="Branch names cannot start or end with hyphens or slashes",
+        )
+
+    # Check for double slashes
+    if "//" in branch_name:
+        raise GitError(
+            f"Branch name '{branch_name}' contains double slashes",
+            code=ErrorCode.BRANCH_ERROR,
+            details="Branch names cannot contain consecutive forward slashes",
+        )
+
+    # Check for invalid characters
+    invalid_chars = [" ", "~", "^", ":", "?", "*", "[", "\\"]
+    if any(char in branch_name for char in invalid_chars):
+        found_chars = [char for char in invalid_chars if char in branch_name]
+        raise GitError(
+            f"Branch name '{branch_name}' contains invalid characters",
+            code=ErrorCode.BRANCH_ERROR,
+            details=f"Found invalid characters: {', '.join(repr(c) for c in found_chars)}",
+        )
+
+    # Check for control characters
+    if any(ord(char) < 32 or ord(char) == 127 for char in branch_name):
+        raise GitError(
+            f"Branch name '{branch_name}' contains control characters",
+            code=ErrorCode.BRANCH_ERROR,
+            details="Branch names cannot contain control characters",
+        )
+
+    # Check for leading or trailing dots
+    if branch_name.startswith(".") or branch_name.endswith("."):
+        raise GitError(
+            f"Branch name '{branch_name}' has leading or trailing dots",
+            code=ErrorCode.BRANCH_ERROR,
+            details="Branch names cannot start or end with dots",
+        )
+
+    # Check for @{
+    if "@{" in branch_name:
+        raise GitError(
+            f"Branch name '{branch_name}' contains '@{{' sequence",
+            code=ErrorCode.BRANCH_ERROR,
+            details="Branch names cannot contain '@{' sequence",
         )
 
 

@@ -1,11 +1,12 @@
-"""Git repository operations."""
+"""Git repository functionality."""
 
 from pathlib import Path
+from typing import Dict, List, Optional, Union
 
 from git import Repo
 from git.exc import InvalidGitRepositoryError, NoSuchPathError
 
-from arborist.exceptions import GitError
+from arborist.errors import ErrorCode, GitError
 from arborist.git.branch_cleanup import BranchCleanup
 from arborist.git.branch_operations import BranchOperations
 from arborist.git.branch_status import BranchStatus, BranchStatusManager
@@ -14,7 +15,7 @@ from arborist.git.branch_status import BranchStatus, BranchStatusManager
 class GitRepo:
     """Git repository operations."""
 
-    def __init__(self, path: str | Path | None = None) -> None:
+    def __init__(self, path: Union[str, Path, None] = None) -> None:
         """Initialize the repository.
 
         Parameters
@@ -33,9 +34,9 @@ class GitRepo:
             self.branch_ops = BranchOperations(self.repo)
             self.branch_cleanup = BranchCleanup(self.repo)
         except (InvalidGitRepositoryError, NoSuchPathError) as err:
-            raise GitError("Not a git repository") from err
+            raise GitError("Not a git repository", code=ErrorCode.REPO_ERROR, details=str(err)) from err
 
-    def get_branch_status(self) -> dict[str, BranchStatus]:
+    def get_branch_status(self) -> Dict[str, BranchStatus]:
         """Get the status of all local branches.
 
         Returns
@@ -45,7 +46,7 @@ class GitRepo:
         """
         return self.branch_status.get_branch_status()
 
-    def get_merged_branches(self) -> list[str]:
+    def get_merged_branches(self) -> List[str]:
         """Get all merged branches.
 
         Returns
@@ -55,7 +56,7 @@ class GitRepo:
         """
         return self.branch_status.get_merged_branches()
 
-    def get_gone_branches(self) -> list[str]:
+    def get_gone_branches(self) -> List[str]:
         """Get all branches whose remotes are gone.
 
         Returns
@@ -137,7 +138,7 @@ class GitRepo:
 
     def clean(
         self,
-        protect: list[str] | None = None,
+        protect: Optional[List[str]] = None,
         force: bool = False,
         no_interactive: bool = False,
         dry_run: bool = False,

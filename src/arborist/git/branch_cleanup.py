@@ -5,7 +5,7 @@ import logging
 from git import GitCommandError, Repo
 from rich import print
 
-from arborist.exceptions import GitError
+from arborist.errors import GitError
 from arborist.git.branch_status import BranchStatus, BranchStatusManager
 
 logger = logging.getLogger(__name__)
