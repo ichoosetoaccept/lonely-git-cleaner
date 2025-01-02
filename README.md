@@ -31,7 +31,7 @@ git clone https://github.com/ichoosetoaccept/arborist.git
 cd arborist
 
 # Install dependencies and the package in development mode
-uv sync --editable
+uv sync
 
 # Install the package as a tool to make `arb` available globally
 uv tool install -e .

@@ -65,50 +65,6 @@ class GitRepo:
         """
         return self.branch_status.get_gone_branches()
 
-    def delete_branch(self, branch_name: str, force: bool = False) -> None:
-        """Delete a local branch.
-
-        Parameters
-        ----------
-        branch_name : str
-            The name of the branch to delete
-        force : bool
-            Whether to force deletion of unmerged branches
-
-        Raises
-        ------
-        GitError
-            If the branch cannot be deleted
-        """
-        self.branch_ops.delete_branch(branch_name, force=force)
-
-    def delete_remote_branch(self, branch_name: str) -> None:
-        """Delete a remote branch.
-
-        Parameters
-        ----------
-        branch_name : str
-            The name of the branch to delete
-
-        Raises
-        ------
-        GitError
-            If the branch cannot be deleted
-        """
-        self.branch_ops.delete_remote_branch(branch_name)
-
-    def create_branch(self, branch_name: str, start_point: str | None = None) -> None:
-        """Create a new branch from the given start point, or HEAD if not specified.
-
-        Parameters
-        ----------
-        branch_name : str
-            The name of the new branch
-        start_point : Optional[str]
-            The commit or branch to start from
-        """
-        self.branch_ops.create_branch(branch_name, start_point)
-
     def get_current_branch_name(self) -> str:
         """Get the name of the currently checked out branch.
 
@@ -118,26 +74,6 @@ class GitRepo:
             The name of the current branch
         """
         return str(self.repo.active_branch)
-
-    def get_latest_commit_sha(self, branch_name: str) -> str:
-        """Get the latest commit SHA for the given branch.
-
-        Parameters
-        ----------
-        branch_name : str
-            The name of the branch
-
-        Returns
-        -------
-        str
-            The commit SHA
-
-        Raises
-        ------
-        ValueError
-            If the branch does not exist
-        """
-        return self.branch_ops.get_latest_commit_sha(branch_name)
 
     def get_repo_root(self) -> str:
         """Get the root directory of the repository.
@@ -220,18 +156,3 @@ class GitRepo:
             Whether to only show what would be done
         """
         self.branch_cleanup.clean(protect, force, no_interactive, dry_run)
-
-    def switch_branch(self, branch_name: str) -> None:
-        """Switch to a branch.
-
-        Parameters
-        ----------
-        branch_name : str
-            Name of the branch to switch to
-
-        Raises
-        ------
-        GitError
-            If branch switch fails
-        """
-        self.branch_ops.switch_branch(branch_name)
