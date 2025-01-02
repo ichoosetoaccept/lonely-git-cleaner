@@ -4,12 +4,11 @@ from pathlib import Path
 from typing import Generator
 
 import pytest
-from git import Repo
-from git.repo.base import Repo as GitRepo
-
 from arborist.exceptions import GitError
 from arborist.git.branch_status import BranchStatusManager
 from arborist.git.common import BranchStatus
+from git import Repo
+from git.repo.base import Repo as GitRepo
 
 
 @pytest.fixture
@@ -28,7 +27,7 @@ def temp_repo(tmp_path: Path) -> Generator[GitRepo, None, None]:
     """
     repo_path = tmp_path / "test_repo"
     repo_path.mkdir()
-    repo = Repo.init(repo_path)
+    repo = Repo.init(repo_path, initial_branch="main")
 
     # Create initial commit on main
     readme_path = repo_path / "README.md"
@@ -67,9 +66,7 @@ def branch_manager(temp_repo: GitRepo) -> BranchStatusManager:
     return BranchStatusManager(temp_repo)
 
 
-def test_get_branch_status_unmerged(
-    branch_manager: BranchStatusManager, temp_repo: GitRepo
-) -> None:
+def test_get_branch_status_unmerged(branch_manager: BranchStatusManager, temp_repo: GitRepo) -> None:
     """Test getting status of an unmerged branch.
 
     Parameters
@@ -94,9 +91,7 @@ def test_get_branch_status_unmerged(
     assert status["feature/test"] == BranchStatus.UNMERGED
 
 
-def test_get_branch_status_merged(
-    branch_manager: BranchStatusManager, temp_repo: GitRepo
-) -> None:
+def test_get_branch_status_merged(branch_manager: BranchStatusManager, temp_repo: GitRepo) -> None:
     """Test getting status of a merged branch.
 
     Parameters
@@ -125,9 +120,7 @@ def test_get_branch_status_merged(
     assert status["feature/test"] == BranchStatus.MERGED
 
 
-def test_get_branch_status_gone(
-    branch_manager: BranchStatusManager, temp_repo: GitRepo
-) -> None:
+def test_get_branch_status_gone(branch_manager: BranchStatusManager, temp_repo: GitRepo) -> None:
     """Test getting status of a gone branch.
 
     Parameters
@@ -162,9 +155,7 @@ def test_get_branch_status_invalid_target(branch_manager: BranchStatusManager) -
         branch_manager.get_branch_status("nonexistent")
 
 
-def test_get_gone_branches(
-    branch_manager: BranchStatusManager, temp_repo: GitRepo
-) -> None:
+def test_get_gone_branches(branch_manager: BranchStatusManager, temp_repo: GitRepo) -> None:
     """Test getting gone branches.
 
     Parameters
@@ -192,9 +183,7 @@ def test_get_gone_branches(
     assert "feature/test2" not in gone_branches
 
 
-def test_get_merged_branches(
-    branch_manager: BranchStatusManager, temp_repo: GitRepo
-) -> None:
+def test_get_merged_branches(branch_manager: BranchStatusManager, temp_repo: GitRepo) -> None:
     """Test getting merged branches.
 
     Parameters

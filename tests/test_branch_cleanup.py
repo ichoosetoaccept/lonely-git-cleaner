@@ -47,7 +47,7 @@ def temp_repo(tmp_path: Path) -> Generator[GitRepo, None, None]:
     """
     repo_path = tmp_path / "test_repo"
     repo_path.mkdir()
-    repo = Repo.init(repo_path)
+    repo = Repo.init(repo_path, initial_branch="main")
 
     # Create initial commit on main
     readme_path = repo_path / "README.md"
