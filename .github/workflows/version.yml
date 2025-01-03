@@ -40,6 +40,11 @@ jobs:
           current_version=${latest_tag#v}
           IFS='.' read -r major minor patch <<< "$current_version"
 
+          # Ensure all parts are treated as numbers
+          major=${major:-0}
+          minor=${minor:-0}
+          patch=${patch:-0}
+
           # Calculate new version
           case $bump_type in
             major)
