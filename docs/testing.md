@@ -4,19 +4,12 @@ This project uses pytest for testing. The tests are organized into unit tests an
 
 ## Running Tests
 
-To run the tests, first activate your virtual environment:
+To run the tests:
 
 ```bash
-source .venv/bin/activate  # Linux/macOS
-.venv\Scripts\activate     # Windows
-```
-
-Then run pytest:
-
-```bash
-pytest -v                  # Run tests with verbose output
-pytest -v -s              # Run tests with verbose output and print statements
-pytest -v --cov           # Run tests with coverage report
+uv run pytest -v                  # Run tests with verbose output
+uv run pytest -v -s              # Run tests with verbose output and print statements
+uv run pytest -v --cov           # Run tests with coverage report
 ```
 
 ## Test Organization
@@ -44,6 +37,16 @@ The test environment:
 - Sets up a bare origin repository and a working clone
 - Provides utility methods for creating branches, commits, etc.
 - Cleans up temporary directories after tests complete
+
+## Cross-Platform Testing
+
+The project includes a Docker setup for testing on Linux while developing on macOS:
+
+```bash
+./test-all.sh  # Runs tests on both macOS and Linux (via Docker)
+```
+
+This ensures compatibility across different platforms.
 
 ## Writing Tests
 
@@ -74,5 +77,5 @@ def test_feature(git_env):
 The project requires a minimum of 85% test coverage. Run tests with coverage reporting to ensure adequate coverage:
 
 ```bash
-pytest -v --cov
+uv run pytest -v --cov
 ```

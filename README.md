@@ -8,6 +8,12 @@
 [![Conventional Commits](https://img.shields.io/badge/Conventional%20Commits-✓-green.svg)](https://conventionalcommits.org)
 [![SemVer](https://img.shields.io/badge/SemVer-✓-blue.svg)](https://semver.org/)
 
+## Platform Support
+
+[![macOS](https://img.shields.io/badge/macOS-tested-success)](https://github.com/ichoosetoaccept/arborist/actions/workflows/test.yml)
+[![Linux](https://img.shields.io/badge/Linux-in%20progress-yellow)](https://github.com/ichoosetoaccept/arborist/actions/workflows/test.yml)
+[![Windows](https://img.shields.io/badge/Windows-untested-inactive)](https://github.com/ichoosetoaccept/arborist/issues)
+
 A CLI tool to clean up Git branches. Like a skilled arborist pruning trees, this tool helps you maintain a clean Git branch structure by removing merged and stale branches while protecting important ones.
 
 ## Features
@@ -108,14 +114,29 @@ You can configure default behavior by creating a `.arboristrc` file in your home
 
 ### Requirements
 
-- Python 3.10 or higher
+- Python 3.12 or higher
 - uv package manager
+- Git 2.28 or higher
+- Docker (optional, for cross-platform testing)
+
+### Platform Support
+
+The project is actively tested on:
+- macOS (primary development platform)
+- Linux (testing in progress via Docker and CI)
+
+Windows support is currently untested. Contributions to add Windows testing and support are welcome!
+
+Note: Linux support is being actively developed and tested. While basic functionality works, there might be platform-specific issues that we're still discovering and fixing. Please report any Linux-specific issues you encounter!
 
 ### Running Tests
 
 ```bash
-# Run tests with coverage
-uv run pytest
+# Run tests locally
+uv run pytest -v -s
+
+# Run tests on both macOS and Linux (via Docker)
+./test-all.sh
 
 # Run linting
 uv run ruff check .
@@ -129,6 +150,7 @@ Test coverage includes:
 - Git operations and error handling
 - Progress bars and visual feedback
 - Configuration management
+- Cross-platform compatibility (macOS and Linux)
 
 ## Contributing
 
@@ -139,7 +161,7 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 1. Fork the repository
 2. Create your feature branch (`git checkout -b feature/amazing-feature`)
 3. Make your changes
-4. Ensure tests pass (`pytest`)
+4. Ensure tests pass (`./test-all.sh`)
 5. Commit your changes using conventional commits
 6. Push to your fork
 7. Open a Pull Request
