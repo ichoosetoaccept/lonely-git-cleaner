@@ -396,6 +396,11 @@ class BranchCleanup:
             Whether to skip confirmation prompts
         dry_run : bool
             Whether to only show what would be done
+
+        Raises
+        ------
+        GitError
+            If any branch deletion fails
         """
         if not to_delete:
             print("[yellow]No branches to delete[/yellow]")
@@ -420,6 +425,10 @@ class BranchCleanup:
         # Print results
         self._print_deletion_results(deleted, failed)
 
+        # Raise error if any deletion failed
+        if failed:
+            raise GitError(f"Failed to delete {len(failed)} branches")
+
     def clean(
         self,
         protect: list[str] | None = None,
@@ -439,6 +448,11 @@ class BranchCleanup:
             Whether to skip confirmation prompts
         dry_run : bool
             Whether to only show what would be done
+
+        Raises
+        ------
+        GitError
+            If any branch deletion fails
         """
         # Get branches to delete
         to_delete = self._get_branches_to_delete(force, protect)

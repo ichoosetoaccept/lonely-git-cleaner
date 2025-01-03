@@ -11,7 +11,7 @@ from git.repo.base import Repo
 
 @pytest.fixture
 def temp_repo() -> Generator[Repo, None, None]:
-    """Create a temporary git repository.
+    """Create a temporary git repository with a remote.
 
     Yields
     -------
@@ -20,7 +20,12 @@ def temp_repo() -> Generator[Repo, None, None]:
     """
     # Create a temporary directory
     with tempfile.TemporaryDirectory() as temp_dir:
-        # Initialize git repository
+        # Create a bare repository to act as remote
+        remote_path = Path(temp_dir) / "remote"
+        remote_path.mkdir()
+        Repo.init(remote_path, bare=True)
+
+        # Initialize local git repository
         repo_path = Path(temp_dir) / "test_repo"
         repo_path.mkdir()
         repo = Repo.init(repo_path, initial_branch="main")  # Initialize with main as default branch
@@ -39,6 +44,13 @@ def temp_repo() -> Generator[Repo, None, None]:
         readme_path.write_text("# Test Repository")
         repo.index.add(["README.md"])
         repo.index.commit("Initial commit")
+
+        # Add remote and push initial commit
+        origin = repo.create_remote("origin", str(remote_path))
+        origin.push(repo.heads.main)
+
+        # Set up tracking for main branch
+        repo.git.push("--set-upstream", "origin", "main")
 
         yield repo
 

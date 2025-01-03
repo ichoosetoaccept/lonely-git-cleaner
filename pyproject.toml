@@ -40,7 +40,6 @@ arb = "arborist.cli:app"
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = [
-    "--verbose",
     "--cov=src/arborist",
     "--cov-report=term-missing",
     "--cov-report=html:coverage/html",

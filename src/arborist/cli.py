@@ -1,7 +1,6 @@
 """Command line interface for arborist."""
 
 import logging
-import sys
 from pathlib import Path
 from typing import Annotated
 
@@ -50,7 +49,7 @@ def _handle_git_error(err: GitError, exit_code: int = 1) -> None:
         The exit code to use
     """
     print(f"Error: {err}")
-    sys.exit(exit_code)
+    raise typer.Exit(code=exit_code)
 
 
 @app.command()
