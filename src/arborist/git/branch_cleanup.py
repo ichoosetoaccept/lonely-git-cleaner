@@ -58,7 +58,7 @@ class BranchCleanup:
                     logger.debug("Branch '%s' is protected by pattern '%s'", branch, pattern)
                     return True
             # Handle prefix matches (e.g. 'main' should protect 'main' and 'main-1.0')
-            elif branch.startswith(pattern + "-") or branch.startswith(pattern + "/") or branch == pattern:
+            elif branch == pattern or branch.startswith(pattern + "-") or branch.startswith(pattern + "/"):
                 logger.debug("Branch '%s' is protected by prefix '%s'", branch, pattern)
                 return True
 

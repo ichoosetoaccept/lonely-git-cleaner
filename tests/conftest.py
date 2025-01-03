@@ -1,12 +1,12 @@
 """Test fixtures and helper functions."""
 
+import os
 import tempfile
 from pathlib import Path
 from typing import Generator
 
 import pytest
-from git.exc import GitCommandError
-from git.repo.base import Repo
+from git import Repo
 
 
 @pytest.fixture
@@ -20,15 +20,13 @@ def temp_repo() -> Generator[Repo, None, None]:
     """
     # Create a temporary directory
     with tempfile.TemporaryDirectory() as temp_dir:
-        # Create a bare repository to act as remote
-        remote_path = Path(temp_dir) / "remote"
-        remote_path.mkdir()
-        Repo.init(remote_path, bare=True)
+        # Resolve the real path to handle macOS /private prefix
+        temp_dir = os.path.realpath(temp_dir)
 
         # Initialize local git repository
         repo_path = Path(temp_dir) / "test_repo"
         repo_path.mkdir()
-        repo = Repo.init(repo_path, initial_branch="main")  # Initialize with main as default branch
+        repo = Repo.init(repo_path, initial_branch="main")  # Initialize with main branch
 
         # Configure repository
         repo.git.config("core.autocrlf", "false")
@@ -39,25 +37,19 @@ def temp_repo() -> Generator[Repo, None, None]:
         repo.config_writer().set_value("user", "name", "Test User").release()
         repo.config_writer().set_value("user", "email", "test@example.com").release()
 
-        # Create initial commit
-        readme_path = repo_path / "README.md"
-        readme_path.write_text("# Test Repository")
-        repo.index.add(["README.md"])
+        # Create initial commit on main
+        readme = repo_path / "README.md"
+        readme.write_text("# Test Repository")
+        repo.index.add([str(readme)])
         repo.index.commit("Initial commit")
 
-        # Add remote and push initial commit
-        origin = repo.create_remote("origin", str(remote_path))
-        origin.push(repo.heads.main)
+        # Create and configure a "remote" repository
+        remote_path = Path(temp_dir) / "remote"
+        remote_path.mkdir()
+        Repo.init(remote_path, bare=True)
+        repo.create_remote("origin", str(remote_path))
 
-        # Set up tracking for main branch
-        repo.heads.main.set_tracking_branch(origin.refs.main)
-        repo.git.push("--set-upstream", "origin", "main")
+        # Push main branch to remote and set upstream tracking
+        repo.git.push("-u", "origin", "main")  # Push and set upstream tracking
 
         yield repo
-
-        # Clean up any remaining changes
-        try:
-            repo.git.reset("--hard")
-            repo.git.clean("-fd")
-        except GitCommandError:
-            pass
