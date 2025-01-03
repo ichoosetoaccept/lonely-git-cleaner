@@ -3,6 +3,9 @@
 from pathlib import Path
 
 import pytest
+from git import GitCommandError, Repo
+from git.repo.base import Repo as GitRepo
+
 from arborist.errors import GitError
 from arborist.git.common import (
     get_branch,
@@ -14,8 +17,6 @@ from arborist.git.common import (
     validate_branch_exists,
     validate_branch_name,
 )
-from git import GitCommandError, Repo
-from git.repo.base import Repo as GitRepo
 
 
 @pytest.fixture

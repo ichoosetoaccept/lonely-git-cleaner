@@ -3,10 +3,11 @@
 from pathlib import Path
 
 import pytest
-from arborist.errors import GitError
-from arborist.git.repo import GitRepo as ArboristRepo
 from git import Repo
 from git.repo.base import Repo as GitRepo
+
+from arborist.errors import GitError
+from arborist.git.repo import GitRepo as ArboristRepo
 
 
 @pytest.fixture

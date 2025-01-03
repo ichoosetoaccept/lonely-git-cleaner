@@ -6,10 +6,11 @@ from pathlib import Path
 from typing import Generator
 
 import pytest
-from arborist.errors import ErrorCode, GitError
-from arborist.git.branch_operations import BranchOperations
 from git import Repo
 from git.repo.base import Repo as GitRepo
+
+from arborist.errors import ErrorCode, GitError
+from arborist.git.branch_operations import BranchOperations
 
 logger = logging.getLogger(__name__)
 

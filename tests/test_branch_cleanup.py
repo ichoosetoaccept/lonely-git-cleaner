@@ -5,11 +5,12 @@ from typing import Generator
 from unittest.mock import patch
 
 import pytest
-from arborist.errors import GitError
-from arborist.git.branch_cleanup import BranchCleanup
 from git import Repo
 from git.exc import GitCommandError
 from git.repo.base import Repo as GitRepo
+
+from arborist.errors import GitError
+from arborist.git.branch_cleanup import BranchCleanup
 
 
 @pytest.fixture
