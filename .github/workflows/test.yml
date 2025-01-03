@@ -38,6 +38,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
@@ -64,5 +66,15 @@ jobs:
           uv run pre-commit install --hook-type pre-push
           uv run pre-commit install --hook-type pre-commit
           uv run pre-commit install --hook-type commit-msg
+      - name: Configure Git
+        run: |
+          git config --global user.name "GitHub Actions"
+          git config --global user.email "actions@github.com"
       - name: Run pre-commit hooks
-        run: uv run pre-commit run --all-files --show-diff-on-failure
+        run: |
+          uv run pre-commit run --all-files --show-diff-on-failure
+          if [[ -n "$(git status --porcelain)" ]]; then
+            git add .
+            git commit -m "style: fix code style issues"
+            git push
+          fi
