@@ -1,9 +1,6 @@
 name: Test
 
 on:
-  push:
-    branches:
-      - main
   pull_request:
     branches:
       - main
@@ -49,14 +46,23 @@ jobs:
         with:
           path: |
             ~/.cache/uv
-          key: ${{ runner.os }}-uv-${{ hashFiles('pyproject.toml') }}
+            ~/.cache/pre-commit
+          key: ${{ runner.os }}-uv-precommit-${{ hashFiles('pyproject.toml', '.pre-commit-config.yaml') }}
           restore-keys: |
-            ${{ runner.os }}-uv-
+            ${{ runner.os }}-uv-precommit-
       - name: Install uv
         run: curl -LsSf https://astral.sh/uv/install.sh | sh
       - name: Install dependencies
         run: |
           uv sync
           uv sync --extra dev
+      - name: Make hook scripts executable
+        run: chmod +x .github/hooks/*.py
+      - name: Initialize pre-commit
+        run: |
+          uv run pre-commit install --install-hooks
+          uv run pre-commit install --hook-type pre-push
+          uv run pre-commit install --hook-type pre-commit
+          uv run pre-commit install --hook-type commit-msg
       - name: Run pre-commit hooks
-        run: uv run pre-commit run --all-files
+        run: uv run pre-commit run --all-files --show-diff-on-failure
