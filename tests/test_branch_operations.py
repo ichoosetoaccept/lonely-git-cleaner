@@ -6,54 +6,32 @@ from pathlib import Path
 from typing import Generator
 
 import pytest
-from git import Repo
-from git.repo.base import Repo as GitRepo
-
 from arborist.errors import ErrorCode, GitError
 from arborist.git.branch_operations import BranchOperations
+from git.repo.base import Repo as GitRepo
 
 logger = logging.getLogger(__name__)
 
 
 @pytest.fixture
-def test_repo(tmp_path: Path) -> Generator[GitRepo, None, None]:
+def test_repo(temp_repo: GitRepo) -> Generator[GitRepo, None, None]:
     """Create a test repository.
 
     Parameters
     ----------
-    tmp_path : Path
-        Temporary directory path
+    temp_repo : GitRepo
+        Temporary repository from conftest.py
 
     Yields
     ------
     GitRepo
         Test repository
     """
-    repo_path = tmp_path / "test_repo"
-    repo_path.mkdir()
-    repo = Repo.init(repo_path)
-
-    # Create initial commit on main
-    readme = repo_path / "README.md"
-    readme.write_text("# Test Repository")
-    repo.index.add([str(readme)])
-    repo.index.commit("Initial commit")
-
-    # Create and configure a "remote" repository
-    remote_path = tmp_path / "remote"
-    remote_path.mkdir()
-    Repo.init(remote_path, bare=True)
-    repo.create_remote("origin", str(remote_path))
-    repo.git.push("origin", "main")
-
-    # Ensure main branch is checked out
-    repo.heads["main"].checkout()
-
     # Change working directory to repo
     old_cwd = os.getcwd()
-    os.chdir(repo_path)
+    os.chdir(temp_repo.working_dir)
 
-    yield repo
+    yield temp_repo
 
     # Restore working directory
     os.chdir(old_cwd)
