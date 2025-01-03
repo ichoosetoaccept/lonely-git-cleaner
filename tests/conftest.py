@@ -26,7 +26,7 @@ def temp_repo() -> Generator[Repo, None, None]:
         # Initialize local git repository
         repo_path = Path(temp_dir) / "test_repo"
         repo_path.mkdir()
-        repo = Repo.init(repo_path, initial_branch="main")  # Initialize with main branch
+        repo = Repo.init(repo_path)  # Initialize without specifying branch
 
         # Configure repository
         repo.git.config("core.autocrlf", "false")
@@ -36,6 +36,9 @@ def temp_repo() -> Generator[Repo, None, None]:
         # Configure git user
         repo.config_writer().set_value("user", "name", "Test User").release()
         repo.config_writer().set_value("user", "email", "test@example.com").release()
+
+        # Create and check out main branch
+        repo.git.checkout("-b", "main")
 
         # Create initial commit on main
         readme = repo_path / "README.md"

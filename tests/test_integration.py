@@ -150,13 +150,22 @@ def _merge_test_branches(repo: GitRepo, scenarios: dict[str, BranchScenario]) ->
     scenarios : dict[str, BranchScenario]
         Branch scenarios to merge
     """
+    # Ensure we're on main and it's up to date
+    if "main" not in repo.heads:
+        raise ValueError("Main branch not found. Repository not properly initialized.")
+
+    repo.heads.main.checkout()
+    if repo.heads.main.tracking_branch():
+        repo.git.pull("--ff-only")  # Update main if it has a tracking branch
+
     # Try to merge branches that should be merged
     for branch_name, scenario in scenarios.items():
         if scenario["should_merge"]:
             try:
                 # First update the branch to ensure it's up to date
                 repo.heads[branch_name].checkout()
-                repo.git.pull("--ff-only") if repo.heads[branch_name].tracking_branch() else None
+                if repo.heads[branch_name].tracking_branch():
+                    repo.git.pull("--ff-only")
 
                 # Then merge into main
                 repo.heads.main.checkout()
@@ -173,37 +182,28 @@ def _merge_test_branches(repo: GitRepo, scenarios: dict[str, BranchScenario]) ->
                 repo.git.merge("--abort")
                 repo.heads.main.checkout()
 
+    # Ensure we push all changes to main
+    repo.heads.main.checkout()
+    if repo.heads.main.tracking_branch():
+        repo.git.push("origin", "main")
+
 
 @pytest.fixture
-def test_repo(tmp_path: Path) -> Generator[GitRepo, None, None]:
+def test_repo(temp_repo: Repo) -> Generator[GitRepo, None, None]:
     """Create a test repository with various branch scenarios.
 
     Parameters
     ----------
-    tmp_path : Path
-        Temporary directory path
+    temp_repo : Repo
+        Base test repository from conftest.py
 
     Yields
     ------
     GitRepo
-        Test repository
+        Test repository with scenarios
     """
-    repo_path = tmp_path / "test_repo"
-    repo_path.mkdir()
-    repo = Repo.init(repo_path)
-
-    # Create initial commit on main
-    readme = repo_path / "README.md"
-    readme.write_text("# Test Repository")
-    repo.index.add([str(readme)])
-    repo.index.commit("Initial commit")
-
-    # Create and configure a "remote" repository
-    remote_path = tmp_path / "remote"
-    remote_path.mkdir()
-    Repo.init(remote_path, bare=True)  # We don't need to store the remote repo
-    repo.create_remote("origin", str(remote_path))
-    repo.git.push("origin", "main")
+    repo = temp_repo
+    repo_path = Path(repo.working_dir)
 
     # Get and set up test scenarios
     scenarios = _get_test_scenarios()
