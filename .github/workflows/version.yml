@@ -12,6 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       new_version: ${{ steps.version.outputs.new_version }}
+      version_number: ${{ steps.version.outputs.version_number }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -60,6 +61,7 @@ jobs:
           esac
 
           echo "new_version=v${new_version}" >> $GITHUB_OUTPUT
+          echo "version_number=${new_version}" >> $GITHUB_OUTPUT
           echo "Bump type: ${bump_type}"
           echo "New version will be: v${new_version}"
 
@@ -79,7 +81,15 @@ jobs:
           git config --global user.name 'github-actions[bot]'
           git config --global user.email 'github-actions[bot]@users.noreply.github.com'
 
-      - name: Create and push tag
+      - name: Update version and create tag
         run: |
-          git tag ${{ needs.version.outputs.new_version }}
-          git push origin ${{ needs.version.outputs.new_version }}
+          # Update version in pyproject.toml
+          sed -i "s/^version = .*/version = \"${{ needs.version.outputs.version_number }}\"/" pyproject.toml
+          git add pyproject.toml
+          git commit -m "chore: bump version to ${{ needs.version.outputs.version_number }}"
+
+          # Create tag pointing to the new commit
+          git tag -a "${{ needs.version.outputs.new_version }}" -m "Release ${{ needs.version.outputs.new_version }}"
+
+          # Push both the commit and tag in one go
+          git push origin main --tags

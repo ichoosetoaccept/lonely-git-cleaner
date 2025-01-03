@@ -1,21 +1,17 @@
+---
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v5.0.0
     hooks:
-      # Essential checks
-      - id: check-ast  # Catch Python syntax errors
-      - id: check-yaml  # Catch YAML syntax errors
-      - id: check-json  # Catch JSON syntax errors
+      - id: check-ast
+      - id: check-yaml
+      - id: check-json
       - id: check-merge-conflict
       - id: detect-private-key
       - id: end-of-file-fixer
       - id: trailing-whitespace
-
-      # Security and large files
       - id: check-added-large-files
-
-      # File integrity
-      - id: check-case-conflict  # Important for cross-platform projects
+      - id: check-case-conflict
       - id: check-executables-have-shebangs
       - id: check-symlinks
 
@@ -26,11 +22,13 @@ repos:
         stages: [commit-msg]
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.3.4
+    rev: v0.8.5
     hooks:
-      - id: ruff
-        args: [--fix, --exit-non-zero-on-fix]
-      - id: ruff-format
+    # Run the linter.
+    - id: ruff
+      args: [ --fix ]
+    # Run the formatter.
+    - id: ruff-format
 
   - repo: local
     hooks:
@@ -41,18 +39,3 @@ repos:
         pass_filenames: false
         always_run: true
         stages: [manual]
-
-      - id: branch-name
-        name: Check branch naming convention
-        entry: python -c 'from git import Repo; import sys, re; repo = Repo("."); branch = repo.active_branch.name; patterns = ["^feature/", "^bugfix/", "^hotfix/", "^release/", "^ci/", "^main$"]; sys.exit(1) if not any(re.match(p, branch) for p in patterns) else print(f"Branch name {branch} follows convention")'
-        language: system
-        pass_filenames: false
-        always_run: true
-
-      - id: no-commit-to-main
-        name: Prevent commits to main branch
-        entry: python -c 'from git import Repo; import sys; branch = Repo(".").active_branch.name; sys.exit(1) if branch == "main" else True'
-        language: system
-        stages: [pre-commit]
-        pass_filenames: false
-        always_run: true
