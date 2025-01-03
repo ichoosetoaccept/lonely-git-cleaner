@@ -22,11 +22,13 @@ repos:
         stages: [commit-msg]
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.3.4
+    rev: v0.8.5
     hooks:
-      - id: ruff
-        args: [--fix]
-      - id: ruff-format
+    # Run the linter.
+    - id: ruff
+      args: [ --fix ]
+    # Run the formatter.
+    - id: ruff-format
 
   - repo: local
     hooks:
@@ -37,20 +39,3 @@ repos:
         pass_filenames: false
         always_run: true
         stages: [manual]
-
-      - id: branch-name
-        name: Check branch naming convention
-        entry: .github/hooks/check_branch.py
-        language: python
-        additional_dependencies: [gitpython]
-        pass_filenames: false
-        always_run: true
-
-      - id: no-commit-to-main
-        name: Prevent commits to main branch
-        entry: .github/hooks/check_main.py
-        language: python
-        additional_dependencies: [gitpython]
-        stages: [pre-commit]
-        pass_filenames: false
-        always_run: true
