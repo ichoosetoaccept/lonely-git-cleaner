@@ -7,7 +7,7 @@ import pytest
 from git import Repo
 from git.repo.base import Repo as GitRepo
 
-from arborist.exceptions import GitError
+from arborist.errors import GitError
 from arborist.git.branch_status import BranchStatusManager
 from arborist.git.common import BranchStatus
 

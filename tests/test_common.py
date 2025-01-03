@@ -6,7 +6,7 @@ import pytest
 from git import GitCommandError, Repo
 from git.repo.base import Repo as GitRepo
 
-from arborist.exceptions import GitError
+from arborist.errors import GitError
 from arborist.git.common import (
     get_branch,
     get_current_branch_name,

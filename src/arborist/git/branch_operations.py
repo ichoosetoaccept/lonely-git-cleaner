@@ -60,8 +60,23 @@ class BranchOperations:
         GitError
             If branch is protected
         """
+        # First check for exact matches
         if branch.name in protected_branches:
             raise GitError(f"Cannot delete protected branch '{branch.name}'")
+
+        # Then check for pattern matches
+        for pattern in protected_branches:
+            # Handle wildcard patterns
+            if "*" in pattern:
+                import fnmatch
+
+                if fnmatch.fnmatch(branch.name, pattern):
+                    raise GitError(f"Cannot delete protected branch '{branch.name}'")
+            # Handle prefix matches (e.g. 'main' should protect 'main' and 'main-1.0')
+            elif (
+                branch.name.startswith(pattern + "-") or branch.name.startswith(pattern + "/") or branch.name == pattern
+            ):
+                raise GitError(f"Cannot delete protected branch '{branch.name}'")
 
     def _delete_branch_safely(self, branch: Head, force: bool = False) -> None:
         """Delete a branch safely.
@@ -79,16 +94,25 @@ class BranchOperations:
             If branch deletion fails
         """
         try:
-            # Delete remote branch first if it exists
+            # Validate not current branch
+            self._validate_not_current_branch(branch)
+
+            # Check for remote tracking branch
             tracking_branch = branch.tracking_branch()
-            if tracking_branch:
+            if tracking_branch and not force:
+                raise GitError(f"Cannot delete branch '{branch.name}' with remote tracking")
+
+            # Delete remote branch first if it exists and force is True
+            if tracking_branch and force:
                 remote = tracking_branch.remote_name
                 try:
                     self.repo.git.push(remote, "--delete", branch.name)
-                    # Fetch to update remote refs
-                    self.repo.git.fetch(remote, "--prune")
                 except GitCommandError as err:
-                    raise GitError(f"Failed to delete remote branch: {err}") from err
+                    # Ignore errors about non-existent remote branches
+                    if "remote ref does not exist" not in str(err):
+                        raise GitError(f"Failed to delete remote branch: {err}") from err
+                # Fetch to update remote refs
+                self.repo.git.fetch(remote, "--prune")
 
             # Delete local branch
             self.repo.delete_head(branch.name, force=force)
@@ -120,8 +144,9 @@ class BranchOperations:
         GitError
             If branch deletion fails
         """
-        # Validate branch name
+        # Validate branch name first
         validate_branch_name(branch_name)
+        # Then check if it exists
         validate_branch_exists(self.repo, branch_name)
 
         # Get branch
@@ -180,6 +205,9 @@ class BranchOperations:
         """
         merged_branches = []
         for branch in self.repo.heads:
+            # Skip main branch
+            if branch.name == "main":
+                continue
             if self._is_branch_merged(branch):
                 merged_branches.append(branch.name)
 
@@ -195,12 +223,89 @@ class BranchOperations:
         """
         gone_branches = []
         for branch in self.repo.heads:
-            if branch.tracking_branch() is None:
+            tracking_branch = branch.tracking_branch()
+            if tracking_branch is None:
                 continue
-            if not branch.tracking_branch().is_valid():
+            if not tracking_branch.is_valid():
                 gone_branches.append(branch.name)
 
         return gone_branches
+
+    def _get_branches_to_delete(self) -> Set[str]:
+        """Get the initial set of branches that could be deleted.
+
+        Returns
+        -------
+        Set[str]
+            Set of branch names that are candidates for deletion.
+        """
+        to_delete = set()
+        to_delete.update(self.get_merged_branches())
+        to_delete.update(self.get_gone_branches())
+        return to_delete
+
+    def _remove_protected_branches(self, to_delete: Set[str], protect: Optional[Set[str]]) -> Set[str]:
+        """Remove protected branches from the set of branches to delete.
+
+        Parameters
+        ----------
+        to_delete : Set[str]
+            Set of branches to potentially delete
+        protect : Optional[Set[str]]
+            Set of branch patterns to protect
+
+        Returns
+        -------
+        Set[str]
+            Set of branches after removing protected ones
+        """
+        if not protect:
+            return to_delete
+
+        protected = set()
+        for branch in to_delete.copy():
+            for pattern in protect:
+                if "*" in pattern:
+                    import fnmatch
+
+                    if fnmatch.fnmatch(branch, pattern):
+                        protected.add(branch)
+                elif branch.startswith(pattern + "-") or branch.startswith(pattern + "/") or branch == pattern:
+                    protected.add(branch)
+        return to_delete - protected
+
+    def _delete_branches_interactive(self, to_delete: Set[str], force: bool, no_verify: bool) -> None:
+        """Delete branches with interactive confirmation.
+
+        Parameters
+        ----------
+        to_delete : Set[str]
+            Set of branches to delete
+        force : bool
+            Force deletion even if branch is not merged
+        no_verify : bool
+            Skip verification checks
+        """
+        for branch in sorted(to_delete):
+            answer = input(f"Delete branch '{branch}'? [y/N] ")
+            if answer.lower() != "y":
+                continue
+            self.delete_branch(branch, force=force, no_verify=no_verify)
+
+    def _delete_branches_non_interactive(self, to_delete: Set[str], force: bool, no_verify: bool) -> None:
+        """Delete branches without confirmation.
+
+        Parameters
+        ----------
+        to_delete : Set[str]
+            Set of branches to delete
+        force : bool
+            Force deletion even if branch is not merged
+        no_verify : bool
+            Skip verification checks
+        """
+        for branch in sorted(to_delete):
+            self.delete_branch(branch, force=force, no_verify=no_verify)
 
     def clean(
         self,
@@ -225,14 +330,8 @@ class BranchOperations:
         protect : Optional[Set[str]], optional
             Set of branch patterns to protect, by default None
         """
-        # Get list of branches to delete
-        to_delete = set()
-        to_delete.update(self.get_merged_branches())
-        to_delete.update(self.get_gone_branches())
-
-        # Remove protected branches
-        if protect:
-            to_delete = {b for b in to_delete if not any(p in b for p in protect)}
+        to_delete = self._get_branches_to_delete()
+        to_delete = self._remove_protected_branches(to_delete, protect)
 
         # Remove current branch
         current_branch = get_current_branch_name(self.repo)
@@ -250,13 +349,7 @@ class BranchOperations:
         if dry_run:
             return
 
-        # Ask for confirmation
-        if not no_interactive:
-            for branch in sorted(to_delete):
-                answer = input(f"Delete branch '{branch}'? [y/N] ")
-                if answer.lower() != "y":
-                    continue
-                self.delete_branch(branch, force=force, no_verify=no_verify)
+        if no_interactive:
+            self._delete_branches_non_interactive(to_delete, force, no_verify)
         else:
-            for branch in sorted(to_delete):
-                self.delete_branch(branch, force=force, no_verify=no_verify)
+            self._delete_branches_interactive(to_delete, force, no_verify)

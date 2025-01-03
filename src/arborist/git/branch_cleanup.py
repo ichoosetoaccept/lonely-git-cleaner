@@ -5,7 +5,7 @@ import logging
 from git import GitCommandError, Repo
 from rich import print
 
-from arborist.exceptions import GitError
+from arborist.errors import GitError
 from arborist.git.branch_status import BranchStatus, BranchStatusManager
 
 logger = logging.getLogger(__name__)
@@ -58,7 +58,7 @@ class BranchCleanup:
                     logger.debug("Branch '%s' is protected by pattern '%s'", branch, pattern)
                     return True
             # Handle prefix matches (e.g. 'main' should protect 'main' and 'main-1.0')
-            elif branch.startswith(pattern + "-") or branch == pattern:
+            elif branch == pattern or branch.startswith(pattern + "-") or branch.startswith(pattern + "/"):
                 logger.debug("Branch '%s' is protected by prefix '%s'", branch, pattern)
                 return True
 
@@ -97,6 +97,11 @@ class BranchCleanup:
             # Skip protected branches
             if protect and self._is_protected_by_pattern(branch, protect):
                 logger.debug("Skipping protected branch '%s'", branch)
+                continue
+
+            # Skip branches with remote tracking unless force is True or branch is gone
+            if not force and state != BranchStatus.GONE and self.repo.heads[branch].tracking_branch() is not None:
+                logger.debug("Skipping branch '%s' with remote tracking", branch)
                 continue
 
             # Include branch if it's merged or gone
@@ -236,7 +241,11 @@ class BranchCleanup:
             print(f"Deleted branch '{branch}'")
             return True, ""
         except GitCommandError as err:
-            return False, f"Failed to delete branch '{branch}': {err}"
+            if "is not fully merged" in str(err):
+                return False, "Branch has unmerged changes. Use --force to delete anyway"
+            if "not yet merged to" in str(err):
+                return False, "Branch has a remote tracking branch. Use --force to delete anyway"
+            return False, f"Failed to delete branch: {err.stderr.splitlines()[0]}"
 
     def _delete_single_branch(
         self, branch: str, force: bool, status: dict[str, BranchStatus]
@@ -264,12 +273,15 @@ class BranchCleanup:
             # Validate not current branch
             self._validate_not_current_branch(branch)
 
-            # Check if branch is merged or gone unless force is True
-            if not force and status[branch] == BranchStatus.UNMERGED:
+            # Check if branch is merged, gone, or force is True
+            if not force and status[branch] not in (BranchStatus.MERGED, BranchStatus.GONE):
                 self._validate_branch_merged(branch)
 
+            # Force delete if branch is gone or force is True
+            should_force = force or status[branch] == BranchStatus.GONE
+
             # Perform deletion
-            success, error = self._perform_branch_deletion(branch, force)
+            success, error = self._perform_branch_deletion(branch, should_force)
             if not success:
                 return False, error
 
@@ -324,14 +336,14 @@ class BranchCleanup:
             List of failed branches and their error messages
         """
         if deleted:
-            print("\nSuccessfully deleted:")
+            print("\n[green]Successfully deleted:[/green]")
             for branch in deleted:
                 print(f"  {branch}")
 
         if failed:
-            print("\nFailed to delete:")
+            print("\n[red]Failed to delete:[/red]")
             for branch, error in failed:
-                print(f"  {branch}: {error}")
+                print(f"  {branch} - {error}")
 
     def _delete_branches_batch(
         self, to_delete: list[str], force: bool, status: dict[str, BranchStatus]
@@ -384,6 +396,11 @@ class BranchCleanup:
             Whether to skip confirmation prompts
         dry_run : bool
             Whether to only show what would be done
+
+        Raises
+        ------
+        GitError
+            If any branch deletion fails
         """
         if not to_delete:
             print("[yellow]No branches to delete[/yellow]")
@@ -408,6 +425,10 @@ class BranchCleanup:
         # Print results
         self._print_deletion_results(deleted, failed)
 
+        # Raise error if any deletion failed
+        if failed:
+            raise GitError(f"Failed to delete {len(failed)} branches")
+
     def clean(
         self,
         protect: list[str] | None = None,
@@ -427,6 +448,11 @@ class BranchCleanup:
             Whether to skip confirmation prompts
         dry_run : bool
             Whether to only show what would be done
+
+        Raises
+        ------
+        GitError
+            If any branch deletion fails
         """
         # Get branches to delete
         to_delete = self._get_branches_to_delete(force, protect)

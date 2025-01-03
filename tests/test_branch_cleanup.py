@@ -9,7 +9,7 @@ from git import Repo
 from git.exc import GitCommandError
 from git.repo.base import Repo as GitRepo
 
-from arborist.exceptions import GitError
+from arborist.errors import GitError
 from arborist.git.branch_cleanup import BranchCleanup
 
 

@@ -5,7 +5,7 @@ from typing import Optional
 from git import GitCommandError, Remote, Repo
 from git.refs import Head, RemoteReference
 
-from arborist.exceptions import GitError
+from arborist.errors import GitError
 from arborist.git.common import (
     BranchDict,
     BranchList,

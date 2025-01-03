@@ -1,6 +1,6 @@
-.clinerules
-.windsurfrules
-.cursorrules
+# Git
+.git
+.gitignore
 
 # Python
 __pycache__/
@@ -8,6 +8,10 @@ __pycache__/
 *$py.class
 *.so
 .Python
+.venv/
+venv/
+ENV/
+env/
 build/
 develop-eggs/
 dist/
@@ -23,14 +27,11 @@ wheels/
 *.egg-info/
 .installed.cfg
 *.egg
-.pytest_cache/
 
-# Virtual Environment
-.env
-.venv
-env/
-venv/
-ENV/
+# Coverage
+.coverage
+coverage.xml
+htmlcov/
 
 # IDE
 .idea/
@@ -38,10 +39,6 @@ ENV/
 *.swp
 *.swo
 
-# Coverage
-.coverage
-coverage/
-htmlcov/
-
-# Misc
+# OS
 .DS_Store
+Thumbs.db

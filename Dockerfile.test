@@ -1,0 +1,24 @@
+FROM ubuntu:latest
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    git \
+    curl \
+    python3 \
+    python3-pip \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install uv
+RUN curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# Set up working directory
+WORKDIR /app
+
+# Copy project files
+COPY . .
+
+# Install project dependencies and run tests
+CMD source "$HOME/.cargo/env" && \
+    uv sync && \
+    uv tool install -e . && \
+    uv run pytest -v -s
