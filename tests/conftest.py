@@ -50,6 +50,7 @@ def temp_repo() -> Generator[Repo, None, None]:
         origin.push(repo.heads.main)
 
         # Set up tracking for main branch
+        repo.heads.main.set_tracking_branch(origin.refs.main)
         repo.git.push("--set-upstream", "origin", "main")
 
         yield repo

@@ -73,7 +73,9 @@ class BranchOperations:
                 if fnmatch.fnmatch(branch.name, pattern):
                     raise GitError(f"Cannot delete protected branch '{branch.name}'")
             # Handle prefix matches (e.g. 'main' should protect 'main' and 'main-1.0')
-            elif branch.name.startswith(pattern + "-") or branch.name == pattern:
+            elif (
+                branch.name.startswith(pattern + "-") or branch.name.startswith(pattern + "/") or branch.name == pattern
+            ):
                 raise GitError(f"Cannot delete protected branch '{branch.name}'")
 
     def _delete_branch_safely(self, branch: Head, force: bool = False) -> None:
@@ -268,7 +270,7 @@ class BranchOperations:
 
                     if fnmatch.fnmatch(branch, pattern):
                         protected.add(branch)
-                elif branch.startswith(pattern + "-") or branch == pattern:
+                elif branch.startswith(pattern + "-") or branch.startswith(pattern + "/") or branch == pattern:
                     protected.add(branch)
         return to_delete - protected
 

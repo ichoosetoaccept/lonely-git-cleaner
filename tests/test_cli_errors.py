@@ -1,8 +1,8 @@
 """Test CLI error handling."""
 
+from arborist.cli import app
 from typer.testing import CliRunner
 
-from arborist.cli import app
 
 # def test_clean_command_git_error(temp_repo):
 #     """Test clean command with Git errors."""

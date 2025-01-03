@@ -1,8 +1,7 @@
 """Test branch cleanup edge cases."""
 
-from git.repo.base import Repo
-
 from arborist.git.branch_cleanup import BranchCleanup
+from git.repo.base import Repo
 
 
 def test_no_branches_to_delete(temp_repo: Repo) -> None:
