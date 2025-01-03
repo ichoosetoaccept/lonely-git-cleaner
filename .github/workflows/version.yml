@@ -12,6 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       new_version: ${{ steps.version.outputs.new_version }}
+      version_number: ${{ steps.version.outputs.version_number }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -88,7 +89,7 @@ jobs:
           git commit -m "chore: bump version to ${{ needs.version.outputs.version_number }}"
 
           # Create tag pointing to the new commit
-          git tag -a ${{ needs.version.outputs.new_version }} -m "Release ${{ needs.version.outputs.new_version }}"
+          git tag -a "${{ needs.version.outputs.new_version }}" -m "Release ${{ needs.version.outputs.new_version }}"
 
           # Push both the commit and tag in one go
           git push origin main --tags
